@@ -358,30 +358,30 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 					//		},
 					//	},
 					//},
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: &[]bool{true}[0],
-						// IMPORTANT: seccomProfile was introduced with Kubernetes 1.19
-						// If you are looking for to produce solutions to be supported
-						// on lower versions you must remove this option.
-						SeccompProfile: &corev1.SeccompProfile{
-							Type: corev1.SeccompProfileTypeRuntimeDefault,
-						},
-					},
+					// SecurityContext: &corev1.PodSecurityContext{
+					// 	RunAsNonRoot: &[]bool{true}[0],
+					// 	// IMPORTANT: seccomProfile was introduced with Kubernetes 1.19
+					// 	// If you are looking for to produce solutions to be supported
+					// 	// on lower versions you must remove this option.
+					// 	SeccompProfile: &corev1.SeccompProfile{
+					// 		Type: corev1.SeccompProfileTypeRuntimeDefault,
+					// 	},
+					// },
 					Containers: []corev1.Container{{
 						Image:           image,
 						Name:            "dragonfly",
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						// Ensure restrictive context for the container
 						// More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
-						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
-							Capabilities: &corev1.Capabilities{
-								Drop: []corev1.Capability{
-									"ALL",
-								},
-							},
-						},
+						// SecurityContext: &corev1.SecurityContext{
+						// 	RunAsNonRoot:             &[]bool{true}[0],
+						// 	AllowPrivilegeEscalation: &[]bool{false}[0],
+						// 	Capabilities: &corev1.Capabilities{
+						// 		Drop: []corev1.Capability{
+						// 			"ALL",
+						// 		},
+						// 	},
+						// },
 					}},
 				},
 			},
