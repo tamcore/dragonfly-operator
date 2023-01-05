@@ -72,6 +72,9 @@ spec:
         - --leader-elect
         image: controller:latest
         name: manager
+        env:
+        - name: DRAGONFLY_IMAGE
+          value: ghcr.io/dragonflydb/dragonfly:v0.13.1
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
