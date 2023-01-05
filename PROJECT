@@ -1,0 +1,6 @@
+domain: pborn.eu
+layout:
+- go.kubebuilder.io/v4-alpha
+projectName: dragonfly-operator
+repo: github.com/tamcore/dragonfly-operator
+version: "3"
