@@ -49,3 +49,8 @@ spec:
     runAsGroup: 65534
     fsGroup: 65534
     fsGroupChangePolicy: "OnRootMismatch"
+  nodeSelector:
+    kubernetes.io/hostname: k3s-worker-a0e3.pb.home
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists

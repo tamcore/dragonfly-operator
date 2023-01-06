@@ -90,6 +90,9 @@ type DragonflySpec struct {
 
 	// +optional
 	StatefulMode bool `json:"statefulMode,omitempty"`
+
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 type Image struct {

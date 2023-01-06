@@ -343,8 +343,9 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 	containers, err := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)
 
 	podSpec := corev1.PodSpec{
-		Containers: containers,
 		// TODO: StatefulMode
+		Containers:         containers,
+		NodeSelector:       dragonfly.Spec.NodeSelector,
 		Affinity:           dragonfly.Spec.Affinity,
 		HostNetwork:        dragonfly.Spec.HostNetwork,
 		ImagePullSecrets:   dragonfly.Spec.ImagePullSecrets,

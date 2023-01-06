@@ -3450,6 +3450,10 @@ spec:
                 type: array
               memcachePort:
                 type: string
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                type: object
               podSecurityContext:
                 description: PodSecurityContext holds pod-level security attributes
                   and common container settings. Some fields are also present in container.securityContext.  Field
