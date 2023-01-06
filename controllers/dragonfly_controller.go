@@ -20,9 +20,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
+	// "strings"
 	"time"
 
+	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -193,11 +195,11 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
+	// Define the deployment
+	deploy, deployErr := r.deploymentForDragonfly(dragonfly)
 	err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, found)
 	if err != nil && apierrors.IsNotFound(err) {
-		// Define a new deployment
-		dep, err := r.deploymentForDragonfly(dragonfly)
-		if err != nil {
+		if deployErr != nil {
 			log.Error(err, "Failed to define new Deployment resource for Dragonfly")
 
 			// The following implementation will update the status
@@ -214,10 +216,10 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 
 		log.Info("Creating a new Deployment",
-			"Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-		if err = r.Create(ctx, dep); err != nil {
+			"Deployment.Namespace", deploy.Namespace, "Deployment.Name", deploy.Name)
+		if err = r.Create(ctx, deploy); err != nil {
 			log.Error(err, "Failed to create new Deployment",
-				"Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+				"Deployment.Namespace", deploy.Namespace, "Deployment.Name", deploy.Name)
 			return ctrl.Result{}, err
 		}
 
@@ -231,56 +233,34 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// The CRD API is defining that the Dragonfly type, have a DragonflySpec.Size field
-	// to set the quantity of Deployment instances is the desired state on the cluster.
-	// Therefore, the following code will ensure the Deployment size is the same as defined
-	// via the Size spec of the Custom Resource which we are reconciling.
-	size := dragonfly.Spec.Size
-	if *found.Spec.Replicas != size {
-		found.Spec.Replicas = &size
-		if err = r.Update(ctx, found); err != nil {
-			log.Error(err, "Failed to update Deployment",
-				"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+	found.Spec = deploy.Spec
+	if err = r.Update(ctx, found); err != nil {
+		log.Error(err, "Failed to update Deployment",
+			"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 
-			// Re-fetch the dragonfly Custom Resource before update the status
-			// so that we have the latest state of the resource on the cluster and we will avoid
-			// raise the issue "the object has been modified, please apply
-			// your changes to the latest version and try again" which would re-trigger the reconciliation
-			if err := r.Get(ctx, req.NamespacedName, dragonfly); err != nil {
-				log.Error(err, "Failed to re-fetch dragonfly")
-				return ctrl.Result{}, err
-			}
-
-			// The following implementation will update the status
-			meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-				Status: metav1.ConditionFalse, Reason: "Resizing",
-				Message: fmt.Sprintf("Failed to update the size for the custom resource (%s): (%s)", dragonfly.Name, err)})
-
-			if err := r.Status().Update(ctx, dragonfly); err != nil {
-				log.Error(err, "Failed to update Dragonfly status")
-				return ctrl.Result{}, err
-			}
-
+		// Re-fetch the dragonfly Custom Resource before update the status
+		// so that we have the latest state of the resource on the cluster and we will avoid
+		// raise the issue "the object has been modified, please apply
+		// your changes to the latest version and try again" which would re-trigger the reconciliation
+		if err := r.Get(ctx, req.NamespacedName, dragonfly); err != nil {
+			log.Error(err, "Failed to re-fetch dragonfly")
 			return ctrl.Result{}, err
 		}
 
-		// Now, that we update the size we want to requeue the reconciliation
-		// so that we can ensure that we have the latest state of the resource before
-		// update. Also, it will help ensure the desired state on the cluster
-		return ctrl.Result{Requeue: true}, nil
-	}
+		// The following implementation will update the status
+		meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
+			Status: metav1.ConditionFalse, Reason: "Resizing",
+			Message: fmt.Sprintf("Failed to update the size for the custom resource (%s): (%s)", dragonfly.Name, err)})
 
-	// The following implementation will update the status
-	meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-		Status: metav1.ConditionTrue, Reason: "Reconciling",
-		Message: fmt.Sprintf("Deployment for custom resource (%s) with %d replicas created successfully", dragonfly.Name, size)})
+		if err := r.Status().Update(ctx, dragonfly); err != nil {
+			log.Error(err, "Failed to update Dragonfly status")
+			return ctrl.Result{}, err
+		}
 
-	if err := r.Status().Update(ctx, dragonfly); err != nil {
-		log.Error(err, "Failed to update Dragonfly status")
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{Requeue: true}, nil
 }
 
 // finalizeDragonfly will perform the required operations before delete the CR.
@@ -307,12 +287,70 @@ func (r *DragonflyReconciler) doFinalizerOperationsForDragonfly(cr *dragonflyv1a
 func (r *DragonflyReconciler) deploymentForDragonfly(
 	dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.Deployment, error) {
 	ls := labelsForDragonfly(dragonfly.Name)
-	replicas := dragonfly.Spec.Size
+	ReplicaCount := dragonfly.Spec.ReplicaCount
 
 	// Get the Operand image
-	image, err := imageForDragonfly()
+	image, err := imageForDragonfly(dragonfly.Spec.Image.Repository, dragonfly.Spec.Image.Tag)
 	if err != nil {
 		return nil, err
+	}
+
+	if dragonfly.Spec.RedisPort == "" {
+		dragonfly.Spec.RedisPort = "6379"
+	}
+
+	var ports []corev1.ContainerPort
+	ports = append(ports, corev1.ContainerPort{
+		Name:          "dragonfly",
+		Protocol:      "TCP",
+		ContainerPort: intstr.Parse(dragonfly.Spec.RedisPort).IntVal,
+	})
+
+	args := []string{
+		"--logtostdout",
+	}
+
+	if len(dragonfly.Spec.ExtraArgs) > 0 {
+		args = append(args, dragonfly.Spec.ExtraArgs...)
+	}
+	if dragonfly.Spec.RedisPort != "" {
+		args = append(args, fmt.Sprintf("--port=%s", dragonfly.Spec.RedisPort))
+	}
+	if dragonfly.Spec.MemcachePort != "" {
+		args = append(args, fmt.Sprintf("--memcache_port=%s", dragonfly.Spec.MemcachePort))
+		ports = append(ports, corev1.ContainerPort{
+			Name:          "memcache",
+			Protocol:      "TCP",
+			ContainerPort: intstr.Parse(dragonfly.Spec.MemcachePort).IntVal,
+		})
+	}
+
+	var envs []corev1.EnvVar
+	envs = append(envs, dragonfly.Spec.ExtraEnvs...)
+
+	dragonflyContainer := []corev1.Container{{
+		Name:            "dragonfly",
+		Image:           image,
+		Args:            args,
+		Env:             envs,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Ports:           ports,
+		Resources:       dragonfly.Spec.Resources,
+		SecurityContext: dragonfly.Spec.SecurityContext,
+	}}
+
+	containers, err := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)
+
+	podSpec := corev1.PodSpec{
+		Containers: containers,
+		// TODO: StatefulMode
+		Affinity:           dragonfly.Spec.Affinity,
+		HostNetwork:        dragonfly.Spec.HostNetwork,
+		ImagePullSecrets:   dragonfly.Spec.ImagePullSecrets,
+		InitContainers:     dragonfly.Spec.InitContainers,
+		SecurityContext:    dragonfly.Spec.PodSecurityContext,
+		ServiceAccountName: dragonfly.Spec.ServiceAccountName,
+		Tolerations:        dragonfly.Spec.Tolerations,
 	}
 
 	dep := &appsv1.Deployment{
@@ -321,7 +359,7 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 			Namespace: dragonfly.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: &ReplicaCount,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
@@ -329,61 +367,7 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
 				},
-				Spec: corev1.PodSpec{
-					// TODO(user): Uncomment the following code to configure the nodeAffinity expression
-					// according to the platforms which are supported by your solution. It is considered
-					// best practice to support multiple architectures. build your manager image using the
-					// makefile target docker-buildx. Also, you can use docker manifest inspect <image>
-					// to check what are the platforms supported.
-					// More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
-					//Affinity: &corev1.Affinity{
-					//	NodeAffinity: &corev1.NodeAffinity{
-					//		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					//			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					//				{
-					//					MatchExpressions: []corev1.NodeSelectorRequirement{
-					//						{
-					//							Key:      "kubernetes.io/arch",
-					//							Operator: "In",
-					//							Values:   []string{"amd64", "arm64", "ppc64le", "s390x"},
-					//						},
-					//						{
-					//							Key:      "kubernetes.io/os",
-					//							Operator: "In",
-					//							Values:   []string{"linux"},
-					//						},
-					//					},
-					//				},
-					//			},
-					//		},
-					//	},
-					//},
-					// SecurityContext: &corev1.PodSecurityContext{
-					// 	RunAsNonRoot: &[]bool{true}[0],
-					// 	// IMPORTANT: seccomProfile was introduced with Kubernetes 1.19
-					// 	// If you are looking for to produce solutions to be supported
-					// 	// on lower versions you must remove this option.
-					// 	SeccompProfile: &corev1.SeccompProfile{
-					// 		Type: corev1.SeccompProfileTypeRuntimeDefault,
-					// 	},
-					// },
-					Containers: []corev1.Container{{
-						Image:           image,
-						Name:            "dragonfly",
-						ImagePullPolicy: corev1.PullIfNotPresent,
-						// Ensure restrictive context for the container
-						// More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
-						// SecurityContext: &corev1.SecurityContext{
-						// 	RunAsNonRoot:             &[]bool{true}[0],
-						// 	AllowPrivilegeEscalation: &[]bool{false}[0],
-						// 	Capabilities: &corev1.Capabilities{
-						// 		Drop: []corev1.Capability{
-						// 			"ALL",
-						// 		},
-						// 	},
-						// },
-					}},
-				},
+				Spec: podSpec,
 			},
 		},
 	}
@@ -399,27 +383,36 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 // labelsForDragonfly returns the labels for selecting the resources
 // More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
 func labelsForDragonfly(name string) map[string]string {
-	var imageTag string
-	image, err := imageForDragonfly()
-	if err == nil {
-		imageTag = strings.Split(image, ":")[1]
-	}
+	// var imageTag string
+	// image, err := imageForDragonfly()
+	// if err == nil {
+	// 	imageTag = strings.Split(image, ":")[1]
+	// }
 	return map[string]string{"app.kubernetes.io/name": "Dragonfly",
-		"app.kubernetes.io/instance":   name,
-		"app.kubernetes.io/version":    imageTag,
+		"app.kubernetes.io/instance": name,
+		// "app.kubernetes.io/version":    imageTag,
 		"app.kubernetes.io/part-of":    "dragonfly-operator",
 		"app.kubernetes.io/created-by": "controller-manager",
 	}
 }
 
+func getVarEnvFallback(string, envVar string) string {
+	if string == "" {
+		if value, ok := os.LookupEnv(envVar); ok {
+			return value
+		}
+	}
+	return string
+}
+
 // imageForDragonfly gets the Operand image which is managed by this controller
 // from the DRAGONFLY_IMAGE environment variable defined in the config/manager/manager.yaml
-func imageForDragonfly() (string, error) {
-	var imageEnvVar = "DRAGONFLY_IMAGE"
-	image, found := os.LookupEnv(imageEnvVar)
-	if !found {
-		return "", fmt.Errorf("Unable to find %s environment variable with the image", imageEnvVar)
-	}
+func imageForDragonfly(imageRepository string, imageTag string) (string, error) {
+	image := fmt.Sprintf("%s:%s",
+		getVarEnvFallback(imageRepository, "DRAGONFLY_IMAGE_REPOSITORY"),
+		getVarEnvFallback(imageTag, "DRAGONFLY_IMAGE_TAG"),
+	)
+
 	return image, nil
 }
 

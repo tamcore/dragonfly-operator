@@ -1,9 +1,49 @@
+---
 apiVersion: dragonfly.pborn.eu/v1alpha1
 kind: Dragonfly
 metadata:
   name: dragonfly-sample
+  namespace: dragonfly
 spec:
-  # TODO(user): edit the following value to ensure the number
-  # of Pods/Instances your Operand must have on cluster
-  size: 1
-
+  image:
+    repository: ghcr.io/tamcore/dragonfly
+    tag: alpha-alpine
+  initContainers:
+    - name: initcontainer
+      image: busybox:1.28
+      command: ["/bin/sh"]
+      args: ["-c", "date; sleep 1;"]
+  containers:
+    - name: sidecar
+      image: busybox:latest
+      command: ["/bin/sh"]
+      args: ["-c", "date; sleep 3600;"]
+  replicaCount: 1
+  redisPort: "10000"
+  memcachePort: "10001"
+  extraArgs:
+    - --dbnum=1
+    - --maxmemory=500M
+    - --proactor_threads=1
+    - --conn_threads=1
+    - --compression_mode=0
+    - --cache_mode=true
+    - --version_check=false
+  resources:
+    limits:
+      cpu: 100m
+      memory: 1000Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  securityContext:
+    capabilities:
+      add:
+      - IPC_LOCK
+    readOnlyRootFilesystem: true
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    runAsGroup: 65534
+    fsGroup: 65534
+    fsGroupChangePolicy: "OnRootMismatch"

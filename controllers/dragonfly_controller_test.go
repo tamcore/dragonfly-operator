@@ -56,7 +56,8 @@ var _ = Describe("Dragonfly controller", func() {
 			Expect(err).To(Not(HaveOccurred()))
 
 			By("Setting the Image ENV VAR which stores the Operand image")
-			err = os.Setenv("DRAGONFLY_IMAGE", "example.com/image:test")
+			err = os.Setenv("DRAGONFLY_IMAGE_REPOSITORY", "example.com/image")
+			err = os.Setenv("DRAGONFLY_IMAGE_TAG", "test")
 			Expect(err).To(Not(HaveOccurred()))
 		})
 
@@ -83,7 +84,7 @@ var _ = Describe("Dragonfly controller", func() {
 						Namespace: namespace.Name,
 					},
 					Spec: dragonflyv1alpha1.DragonflySpec{
-						Size: 1,
+						ReplicaCount: 1,
 					},
 				}
 
@@ -120,7 +121,7 @@ var _ = Describe("Dragonfly controller", func() {
 					latestStatusCondition := dragonfly.Status.Conditions[len(dragonfly.Status.Conditions)-1]
 					expectedLatestStatusCondition := metav1.Condition{Type: typeAvailableDragonfly,
 						Status: metav1.ConditionTrue, Reason: "Reconciling",
-						Message: fmt.Sprintf("Deployment for custom resource (%s) with %d replicas created successfully", dragonfly.Name, dragonfly.Spec.Size)}
+						Message: fmt.Sprintf("Deployment for custom resource (%s) with %d replicas created successfully", dragonfly.Name, dragonfly.Spec.ReplicaCount)}
 					if latestStatusCondition != expectedLatestStatusCondition {
 						return fmt.Errorf("The latest status condition added to the dragonfly instance is not as expected")
 					}

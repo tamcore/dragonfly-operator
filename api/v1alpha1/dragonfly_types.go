@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,13 +29,70 @@ type DragonflySpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// +optional
+	Image Image `json:"image,omitempty"`
+
+	// +optional
+	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Size defines the number of Dragonfly instances
 	// The following markers will use OpenAPI v3 schema to validate the value
 	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3
 	// +kubebuilder:validation:ExclusiveMaximum=false
-	Size int32 `json:"size,omitempty"`
+
+	// +optional
+	ReplicaCount int32 `json:"replicaCount,omitempty"`
+
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Resources",xDescriptors="urn:alm:descriptor:com.tectonic.ui:resourceRequirements"
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
+	// +optional
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+
+	// +optional
+	SecurityContext *v1.SecurityContext `json:"securityContext,omitempty"`
+
+	// +optional
+	PodSecurityContext *v1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// +operator-sdk:csv:custom	resourcedefinitions:type=spec,displayName="ServiceAccount name",xDescriptors="urn:alm:descriptor:io.kubernetes:ServiceAccount"
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// +optional
+	Containers []v1.Container `json:"containers,omitempty"`
+
+	// +optional
+	InitContainers []v1.Container `json:"initContainers,omitempty"`
+
+	// +optional
+	HostNetwork bool `json:"hostNetwork,omitempty"`
+
+	// +optional
+	RedisPort string `json:"redisPort,omitempty"`
+
+	// +optional
+	MemcachePort string `json:"memcachePort,omitempty"`
+
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty"`
+
+	// +optional
+	ExtraEnvs []v1.EnvVar `json:"extraEnvs,omitempty"`
+
+	// +optional
+	StatefulMode bool `json:"statefulMode,omitempty"`
+}
+
+type Image struct {
+	Repository string        `json:"repository,omitempty"`
+	Tag        string        `json:"tag,omitempty"`
+	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty"`
 }
 
 // DragonflyStatus defines the observed state of Dragonfly
