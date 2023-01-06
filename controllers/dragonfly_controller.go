@@ -330,6 +330,7 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 
 	dragonflyContainer := []corev1.Container{{
 		Name:            "dragonfly",
+		Command:         dragonfly.Spec.CommandOverride,
 		Image:           image,
 		Args:            args,
 		Env:             envs,

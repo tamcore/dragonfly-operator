@@ -5,6 +5,8 @@ metadata:
   name: dragonfly-sample
   namespace: dragonfly
 spec:
+  commandOverride:
+    - /usr/local/bin/dragonfly
   image:
     repository: ghcr.io/tamcore/dragonfly
     tag: alpha-alpine

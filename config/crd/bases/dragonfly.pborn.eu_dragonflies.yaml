@@ -863,6 +863,10 @@ spec:
                         type: array
                     type: object
                 type: object
+              commandOverride:
+                items:
+                  type: string
+                type: array
               containers:
                 items:
                   description: A single application container that you want to run

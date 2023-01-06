@@ -137,6 +137,11 @@ func (in *DragonflySpec) DeepCopyInto(out *DragonflySpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.CommandOverride != nil {
+		in, out := &in.CommandOverride, &out.CommandOverride
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.ExtraEnvs != nil {
 		in, out := &in.ExtraEnvs, &out.ExtraEnvs
 		*out = make([]v1.EnvVar, len(*in))

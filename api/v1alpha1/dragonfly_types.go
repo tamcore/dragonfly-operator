@@ -83,6 +83,9 @@ type DragonflySpec struct {
 	ExtraArgs []string `json:"extraArgs,omitempty"`
 
 	// +optional
+	CommandOverride []string `json:"commandOverride,omitempty"`
+
+	// +optional
 	ExtraEnvs []v1.EnvVar `json:"extraEnvs,omitempty"`
 
 	// +optional
