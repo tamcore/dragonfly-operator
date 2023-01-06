@@ -130,7 +130,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// occurs before the custom resource to be deleted.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
 	if !controllerutil.ContainsFinalizer(dragonfly, dragonflyFinalizer) {
-		log.Info("Adding Finalizer for Dragonfly")
+		log.Info("Adding Finalizer for Dragonfly", dragonfly.Namespace, " in ", dragonfly.Namespace)
 		if ok := controllerutil.AddFinalizer(dragonfly, dragonflyFinalizer); !ok {
 			log.Error(err, "Failed to add finalizer into the custom resource")
 			return ctrl.Result{Requeue: true}, nil
@@ -185,14 +185,14 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				return ctrl.Result{}, err
 			}
 
-			log.Info("Removing Finalizer for Dragonfly after successfully perform the operations")
+			log.Info("Removing Finalizer for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") after successfully perform the operations")
 			if ok := controllerutil.RemoveFinalizer(dragonfly, dragonflyFinalizer); !ok {
-				log.Error(err, "Failed to remove finalizer for Dragonfly")
+				log.Error(err, "Failed to remove finalizer for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 				return ctrl.Result{Requeue: true}, nil
 			}
 
 			if err := r.Update(ctx, dragonfly); err != nil {
-				log.Error(err, "Failed to remove finalizer for Dragonfly")
+				log.Error(err, "Failed to remove finalizer for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 				return ctrl.Result{}, err
 			}
 		}
@@ -209,7 +209,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundService)
 		if err != nil && apierrors.IsNotFound(err) {
 			if serviceErr != nil {
-				log.Error(err, "Failed to define new Service resource for Dragonfly")
+				log.Error(err, "Failed to define new Service for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 
 				// The following implementation will update the status
 				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
@@ -217,7 +217,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					Message: fmt.Sprintf("Failed to create Service for the custom resource (%s): (%s)", dragonfly.Name, err)})
 
 				if err := r.Status().Update(ctx, dragonfly); err != nil {
-					log.Error(err, "Failed to update Dragonfly status")
+					log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
 					return ctrl.Result{}, err
 				}
 
@@ -237,18 +237,18 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			// and move forward for the next operations
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		} else if err != nil {
-			log.Error(err, "Failed to get Service")
+			log.Error(err, "Failed to get Service (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 			// Let's return the error for the reconciliation be re-trigged again
 			return ctrl.Result{}, err
 		}
 
 		if !reflect.DeepEqual(service.Spec, foundService.Spec) {
 			foundService.Spec = service.Spec
-			log.Info("Reconciling Service %s/%s\n", service.Namespace, service.Name)
+			log.Info("Reconciling Service (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 
 			err = r.Update(context.TODO(), foundService)
 			if err != nil {
-				log.Error(err, "Failed to recincile deployment")
+				log.Error(err, "Failed to reconcile Service (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 				return ctrl.Result{}, err
 			}
 		}
@@ -264,7 +264,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundPodMonitor)
 		if err != nil && apierrors.IsNotFound(err) {
 			if podMonitorErr != nil {
-				log.Error(err, "Failed to define new PodMonitor resource for Dragonfly")
+				log.Error(err, "Failed to define new PodMonitor resource for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 
 				// The following implementation will update the status
 				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
@@ -272,7 +272,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					Message: fmt.Sprintf("Failed to create PodMonitor for the custom resource (%s): (%s)", dragonfly.Name, err)})
 
 				if err := r.Status().Update(ctx, dragonfly); err != nil {
-					log.Error(err, "Failed to update Dragonfly status")
+					log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
 					return ctrl.Result{}, err
 				}
 
@@ -292,18 +292,18 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			// and move forward for the next operations
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		} else if err != nil {
-			log.Error(err, "Failed to get PodMonitor")
+			log.Error(err, "Failed to get PodMonitor (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 			// Let's return the error for the reconciliation be re-trigged again
 			return ctrl.Result{}, err
 		}
 
 		if !reflect.DeepEqual(podMonitor.Spec, foundPodMonitor.Spec) {
 			foundPodMonitor.Spec = podMonitor.Spec
-			log.Info("Reconciling PodMonitor %s/%s\n", dragonfly.Namespace, dragonfly.Name)
+			log.Info("Reconciling PodMonitor (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 
 			err = r.Update(context.TODO(), foundPodMonitor)
 			if err != nil {
-				log.Error(err, "Failed to recincile deployment")
+				log.Error(err, "Failed to reconcile deployment")
 				return ctrl.Result{}, err
 			}
 		}
@@ -323,7 +323,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					Message: fmt.Sprintf("Failed to create StatefulSet for the custom resource (%s): (%s)", dragonfly.Name, err)})
 
 				if err := r.Status().Update(ctx, dragonfly); err != nil {
-					log.Error(err, "Failed to update Dragonfly status")
+					log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
 					return ctrl.Result{}, err
 				}
 
@@ -343,18 +343,18 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			// and move forward for the next operations
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		} else if err != nil {
-			log.Error(err, "Failed to get StatefulSet")
+			log.Error(err, "Failed to get Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 			// Let's return the error for the reconciliation be re-trigged again
 			return ctrl.Result{}, err
 		}
 
 		if !reflect.DeepEqual(deploy.Spec, found.Spec) {
 			found.Spec = deploy.Spec
-			log.Info("Reconciling StatefulSet %s/%s\n", deploy.Namespace, deploy.Name)
+			log.Info("Reconciling StatefulSet (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 
 			err = r.Update(context.TODO(), found)
 			if err != nil {
-				log.Error(err, "Failed to recincile deployment")
+				log.Error(err, "Failed to reconcile StatefulSet (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 				return ctrl.Result{}, err
 			}
 		}
@@ -367,7 +367,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, found)
 	if err != nil && apierrors.IsNotFound(err) {
 		if deployErr != nil {
-			log.Error(err, "Failed to define new Deployment resource for Dragonfly")
+			log.Error(err, "Failed to define new Deployment resource for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 
 			// The following implementation will update the status
 			meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
@@ -375,7 +375,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				Message: fmt.Sprintf("Failed to create Deployment for the custom resource (%s): (%s)", dragonfly.Name, err)})
 
 			if err := r.Status().Update(ctx, dragonfly); err != nil {
-				log.Error(err, "Failed to update Dragonfly status")
+				log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
 				return ctrl.Result{}, err
 			}
 
@@ -395,18 +395,18 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// and move forward for the next operations
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	} else if err != nil {
-		log.Error(err, "Failed to get Deployment")
+		log.Error(err, "Failed to get Deployment (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 		// Let's return the error for the reconciliation be re-trigged again
 		return ctrl.Result{}, err
 	}
 
 	if !reflect.DeepEqual(deploy.Spec, found.Spec) {
 		found.Spec = deploy.Spec
-		log.Info("Reconciling Deployment %s/%s\n", deploy.Namespace, deploy.Name)
+		log.Info("Reconciling Deployment (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 
 		err = r.Update(context.TODO(), found)
 		if err != nil {
-			log.Error(err, "Failed to recincile deployment")
+			log.Error(err, "Failed to reconcile Deployment (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
 			return ctrl.Result{}, err
 		}
 	}
