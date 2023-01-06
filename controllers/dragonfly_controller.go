@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	// "strings"
 	"time"
 
@@ -328,6 +329,45 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 	var envs []corev1.EnvVar
 	envs = append(envs, dragonfly.Spec.ExtraEnvs...)
 
+	var volumes []corev1.Volume
+	var volumeMounts []corev1.VolumeMount
+	volumeMounts = append(volumeMounts, dragonfly.Spec.VolumeMounts...)
+	volumes = append(volumes, dragonfly.Spec.Volumes...)
+
+	for _, s := range dragonfly.Spec.Secrets {
+		volumes = append(volumes, corev1.Volume{
+			Name: fmt.Sprintf("secret-%s", s),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: s,
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      fmt.Sprintf("secret-%s", s),
+			ReadOnly:  true,
+			MountPath: path.Join("/etc/dragonfly/secret/", s),
+		})
+	}
+
+	for _, c := range dragonfly.Spec.ConfigMaps {
+		volumes = append(volumes, corev1.Volume{
+			Name: fmt.Sprintf("configmap-%s", c),
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: c,
+					},
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      fmt.Sprintf("configmap-%s", c),
+			ReadOnly:  true,
+			MountPath: path.Join("/etc/dragonfly/configs/", c),
+		})
+	}
+
 	dragonflyContainer := []corev1.Container{{
 		Name:            "dragonfly",
 		Command:         dragonfly.Spec.CommandOverride,
@@ -338,6 +378,7 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 		Ports:           ports,
 		Resources:       dragonfly.Spec.Resources,
 		SecurityContext: dragonfly.Spec.SecurityContext,
+		VolumeMounts:    volumeMounts,
 	}}
 
 	containers, err := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)
@@ -353,6 +394,7 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 		SecurityContext:    dragonfly.Spec.PodSecurityContext,
 		ServiceAccountName: dragonfly.Spec.ServiceAccountName,
 		Tolerations:        dragonfly.Spec.Tolerations,
+		Volumes:            volumes,
 	}
 
 	dep := &appsv1.Deployment{

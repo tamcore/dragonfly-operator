@@ -93,6 +93,18 @@ type DragonflySpec struct {
 
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// +optional
+	ConfigMaps []string `json:"configMaps,omitempty"`
+
+	// +optional
+	Volumes []v1.Volume `json:"volumes,omitempty"`
+
+	// +optional
+	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 type Image struct {

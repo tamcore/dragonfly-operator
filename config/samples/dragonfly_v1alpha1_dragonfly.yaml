@@ -1,10 +1,30 @@
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+  namespace: dragonfly
+data:
+  foo: bar
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test
+  namespace: dragonfly
+stringData:
+  foo: bar
+---
 apiVersion: dragonfly.pborn.eu/v1alpha1
 kind: Dragonfly
 metadata:
   name: dragonfly-sample
   namespace: dragonfly
 spec:
+  configMaps:
+    - test
+  secrets:
+    - test
   commandOverride:
     - /usr/local/bin/dragonfly
   image:
@@ -54,3 +74,10 @@ spec:
   tolerations:
     - effect: NoSchedule
       operator: Exists
+  volumes:
+    - name: tmp
+      emptyDir:
+        sizeLimit: 500Mi
+  volumeMounts:
+    - mountPath: /tmp
+      name: tmp
