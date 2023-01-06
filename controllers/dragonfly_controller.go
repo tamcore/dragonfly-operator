@@ -197,6 +197,59 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
+	if dragonfly.Spec.RedisPort == "" {
+		dragonfly.Spec.RedisPort = "6379"
+	}
+
+	foundService := &v1.Service{}
+	service, serviceErr := r.serviceForDragonfly(dragonfly)
+	err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundService)
+	if err != nil && apierrors.IsNotFound(err) {
+		if serviceErr != nil {
+			log.Error(err, "Failed to define new StatefulSet resource for Dragonfly")
+
+			// The following implementation will update the status
+			meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
+				Status: metav1.ConditionFalse, Reason: "Reconciling",
+				Message: fmt.Sprintf("Failed to create StatefulSet for the custom resource (%s): (%s)", dragonfly.Name, err)})
+
+			if err := r.Status().Update(ctx, dragonfly); err != nil {
+				log.Error(err, "Failed to update Dragonfly status")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Creating a new StatefulSet",
+			"StatefulSet.Namespace", service.Namespace, "StatefulSet.Name", service.Name)
+		if err = r.Create(ctx, service); err != nil {
+			log.Error(err, "Failed to create new StatefulSet",
+				"StatefulSet.Namespace", service.Namespace, "StatefulSet.Name", service.Name)
+			return ctrl.Result{}, err
+		}
+
+		// StatefulSet created successfully
+		// We will requeue the reconciliation so that we can ensure the state
+		// and move forward for the next operations
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get StatefulSet")
+		// Let's return the error for the reconciliation be re-trigged again
+		return ctrl.Result{}, err
+	}
+
+	if !reflect.DeepEqual(service.Spec, foundService.Spec) {
+		foundService.Spec = service.Spec
+		log.Info("Reconciling StatefulSet %s/%s\n", service.Namespace, service.Name)
+
+		err = r.Update(context.TODO(), foundService)
+		if err != nil {
+			log.Error(err, "Failed to recincile deployment")
+			return ctrl.Result{}, err
+		}
+	}
+
 	if dragonfly.Spec.StatefulMode {
 		found := &appsv1.StatefulSet{}
 		deploy, deployErr := r.statefulsetForDragonfly(dragonfly)
@@ -326,10 +379,6 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 
 	// Get the Operand image
 	image, _ := imageForDragonfly(dragonfly.Spec.Image.Repository, dragonfly.Spec.Image.Tag)
-
-	if dragonfly.Spec.RedisPort == "" {
-		dragonfly.Spec.RedisPort = "6379"
-	}
 
 	var ports []corev1.ContainerPort
 	ports = append(ports, corev1.ContainerPort{
@@ -521,6 +570,43 @@ func (r *DragonflyReconciler) statefulsetForDragonfly(dragonfly *dragonflyv1alph
 	return sts, nil
 }
 
+func (r *DragonflyReconciler) serviceForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*v1.Service, error) {
+	ls := labelsForDragonfly(dragonfly.Name)
+
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dragonfly.Name,
+			Namespace: dragonfly.Namespace,
+		},
+		Spec: v1.ServiceSpec{
+			Type:     v1.ServiceTypeClusterIP,
+			Selector: ls,
+			Ports: []v1.ServicePort{
+				{
+					Name:       "dragonfly",
+					Protocol:   "TCP",
+					Port:       intstr.Parse(dragonfly.Spec.RedisPort).IntVal,
+					TargetPort: intstr.Parse(dragonfly.Spec.RedisPort),
+				},
+			},
+		},
+	}
+
+	if dragonfly.Spec.MemcachePort != "" {
+		svc.Spec.Ports = append(svc.Spec.Ports, v1.ServicePort{
+			Name:       "memcache",
+			Protocol:   "TCP",
+			Port:       intstr.Parse(dragonfly.Spec.MemcachePort).IntVal,
+			TargetPort: intstr.Parse(dragonfly.Spec.MemcachePort),
+		})
+	}
+
+	if err := ctrl.SetControllerReference(dragonfly, svc, r.Scheme); err != nil {
+		return nil, err
+	}
+	return svc, nil
+}
+
 // labelsForDragonfly returns the labels for selecting the resources
 // More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
 func labelsForDragonfly(name string) map[string]string {
@@ -530,7 +616,7 @@ func labelsForDragonfly(name string) map[string]string {
 	// 	imageTag = strings.Split(image, ":")[1]
 	// }
 	return map[string]string{"app.kubernetes.io/name": "Dragonfly",
-		"app.kubernetes.io/instance": name,
+		"app.kubernetes.io/instance":   name,
 		"app.kubernetes.io/part-of":    "dragonfly-operator",
 		"app.kubernetes.io/created-by": "controller-manager",
 	}
