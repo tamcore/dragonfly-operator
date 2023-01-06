@@ -269,17 +269,11 @@ func (r *DragonflyReconciler) doFinalizerOperationsForDragonfly(cr *dragonflyv1a
 			cr.Namespace))
 }
 
-// deploymentForDragonfly returns a Dragonfly Deployment object
-func (r *DragonflyReconciler) deploymentForDragonfly(
-	dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.Deployment, error) {
-	ls := labelsForDragonfly(dragonfly.Name)
-	ReplicaCount := dragonfly.Spec.ReplicaCount
+func (r *DragonflyReconciler) dragonflyPodSpec(
+	dragonfly *dragonflyv1alpha1.Dragonfly) *corev1.PodSpec {
 
 	// Get the Operand image
-	image, err := imageForDragonfly(dragonfly.Spec.Image.Repository, dragonfly.Spec.Image.Tag)
-	if err != nil {
-		return nil, err
-	}
+	image, _ := imageForDragonfly(dragonfly.Spec.Image.Repository, dragonfly.Spec.Image.Tag)
 
 	if dragonfly.Spec.RedisPort == "" {
 		dragonfly.Spec.RedisPort = "6379"
@@ -366,9 +360,9 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 		VolumeMounts:    volumeMounts,
 	}}
 
-	containers, err := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)
+	containers, _ := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)
 
-	podSpec := corev1.PodSpec{
+	podSpec := &corev1.PodSpec{
 		// TODO: StatefulMode
 		Containers:         containers,
 		NodeSelector:       dragonfly.Spec.NodeSelector,
@@ -382,13 +376,23 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 		Volumes:            volumes,
 	}
 
+	return podSpec
+}
+
+// deploymentForDragonfly returns a Dragonfly Deployment object
+func (r *DragonflyReconciler) deploymentForDragonfly(
+	dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.Deployment, error) {
+	ls := labelsForDragonfly(dragonfly.Name)
+
+	podSpec := r.dragonflyPodSpec(dragonfly)
+
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dragonfly.Name,
 			Namespace: dragonfly.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &ReplicaCount,
+			Replicas: &dragonfly.Spec.ReplicaCount,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
@@ -396,7 +400,40 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
 				},
-				Spec: podSpec,
+				Spec: *podSpec,
+			},
+		},
+	}
+
+	// Set the ownerRef for the Deployment
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
+	if err := ctrl.SetControllerReference(dragonfly, dep, r.Scheme); err != nil {
+		return nil, err
+	}
+	return dep, nil
+}
+
+func (r *DragonflyReconciler) statefulsetForDragonfly(
+	dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.StatefulSet, error) {
+	ls := labelsForDragonfly(dragonfly.Name)
+
+	podSpec := r.dragonflyPodSpec(dragonfly)
+
+	dep := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dragonfly.Name,
+			Namespace: dragonfly.Namespace,
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas: &dragonfly.Spec.ReplicaCount,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: ls,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: ls,
+				},
+				Spec: *podSpec,
 			},
 		},
 	}
