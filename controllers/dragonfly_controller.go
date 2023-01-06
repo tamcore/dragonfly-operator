@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	// "strings"
+	"reflect"
 	"time"
 
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
@@ -234,31 +235,15 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	found.Spec = deploy.Spec
-	if err = r.Update(ctx, found); err != nil {
-		log.Error(err, "Failed to update Deployment",
-			"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+	if !reflect.DeepEqual(deploy.Spec, found.Spec) {
+		found.Spec = deploy.Spec
+		log.Info("Reconciling Deployment %s/%s\n", deploy.Namespace, deploy.Name)
 
-		// Re-fetch the dragonfly Custom Resource before update the status
-		// so that we have the latest state of the resource on the cluster and we will avoid
-		// raise the issue "the object has been modified, please apply
-		// your changes to the latest version and try again" which would re-trigger the reconciliation
-		if err := r.Get(ctx, req.NamespacedName, dragonfly); err != nil {
-			log.Error(err, "Failed to re-fetch dragonfly")
+		err = r.Update(context.TODO(), found)
+		if err != nil {
+			log.Error(err, "Failed to recincile deployment")
 			return ctrl.Result{}, err
 		}
-
-		// The following implementation will update the status
-		meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-			Status: metav1.ConditionFalse, Reason: "Resizing",
-			Message: fmt.Sprintf("Failed to update the size for the custom resource (%s): (%s)", dragonfly.Name, err)})
-
-		if err := r.Status().Update(ctx, dragonfly); err != nil {
-			log.Error(err, "Failed to update Dragonfly status")
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{Requeue: true}, nil
