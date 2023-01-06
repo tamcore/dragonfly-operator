@@ -447,7 +447,7 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 	})
 
 	args := []string{
-		"--logtostdout",
+		"--logtostderr",
 	}
 
 	if len(dragonfly.Spec.ExtraArgs) > 0 {
