@@ -374,7 +374,7 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 		Image:           image,
 		Args:            args,
 		Env:             envs,
-		ImagePullPolicy: corev1.PullIfNotPresent,
+		ImagePullPolicy: dragonfly.Spec.Image.PullPolicy,
 		Ports:           ports,
 		Resources:       dragonfly.Spec.Resources,
 		SecurityContext: dragonfly.Spec.SecurityContext,
