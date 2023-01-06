@@ -35,6 +35,7 @@ metadata:
   name: dragonfly-sample
   namespace: dragonfly
 spec:
+  podMonitor: true
   configMaps:
     - test
   secrets:

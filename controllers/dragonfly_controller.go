@@ -22,9 +22,7 @@ import (
 	"os"
 	"path"
 	// "strings"
-	"reflect"
-	"time"
-
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,10 +34,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"time"
 
 	dragonflyv1alpha1 "github.com/tamcore/dragonfly-operator/api/v1alpha1"
 )
@@ -70,6 +70,7 @@ type DragonflyReconciler struct {
 //+kubebuilder:rbac:groups=dragonfly.pborn.eu,resources=dragonflies/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=statefulset,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
@@ -201,52 +202,109 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		dragonfly.Spec.RedisPort = "6379"
 	}
 
-	foundService := &v1.Service{}
-	service, serviceErr := r.serviceForDragonfly(dragonfly)
-	err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundService)
-	if err != nil && apierrors.IsNotFound(err) {
-		if serviceErr != nil {
-			log.Error(err, "Failed to define new StatefulSet resource for Dragonfly")
+	if true {
+		foundService := &v1.Service{}
+		service, serviceErr := r.serviceForDragonfly(dragonfly)
+		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundService)
+		if err != nil && apierrors.IsNotFound(err) {
+			if serviceErr != nil {
+				log.Error(err, "Failed to define new Service resource for Dragonfly")
 
-			// The following implementation will update the status
-			meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-				Status: metav1.ConditionFalse, Reason: "Reconciling",
-				Message: fmt.Sprintf("Failed to create StatefulSet for the custom resource (%s): (%s)", dragonfly.Name, err)})
+				// The following implementation will update the status
+				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
+					Status: metav1.ConditionFalse, Reason: "Reconciling",
+					Message: fmt.Sprintf("Failed to create Service for the custom resource (%s): (%s)", dragonfly.Name, err)})
 
-			if err := r.Status().Update(ctx, dragonfly); err != nil {
-				log.Error(err, "Failed to update Dragonfly status")
+				if err := r.Status().Update(ctx, dragonfly); err != nil {
+					log.Error(err, "Failed to update Dragonfly status")
+					return ctrl.Result{}, err
+				}
+
 				return ctrl.Result{}, err
 			}
 
+			log.Info("Creating a new Service",
+				"Service.Namespace", service.Namespace, "Service.Name", service.Name)
+			if err = r.Create(ctx, service); err != nil {
+				log.Error(err, "Failed to create new Service",
+					"Service.Namespace", service.Namespace, "Service.Name", service.Name)
+				return ctrl.Result{}, err
+			}
+
+			// Service created successfully
+			// We will requeue the reconciliation so that we can ensure the state
+			// and move forward for the next operations
+			return ctrl.Result{RequeueAfter: time.Minute}, nil
+		} else if err != nil {
+			log.Error(err, "Failed to get Service")
+			// Let's return the error for the reconciliation be re-trigged again
 			return ctrl.Result{}, err
 		}
 
-		log.Info("Creating a new StatefulSet",
-			"StatefulSet.Namespace", service.Namespace, "StatefulSet.Name", service.Name)
-		if err = r.Create(ctx, service); err != nil {
-			log.Error(err, "Failed to create new StatefulSet",
-				"StatefulSet.Namespace", service.Namespace, "StatefulSet.Name", service.Name)
-			return ctrl.Result{}, err
+		if !reflect.DeepEqual(service.Spec, foundService.Spec) {
+			foundService.Spec = service.Spec
+			log.Info("Reconciling Service %s/%s\n", service.Namespace, service.Name)
+
+			err = r.Update(context.TODO(), foundService)
+			if err != nil {
+				log.Error(err, "Failed to recincile deployment")
+				return ctrl.Result{}, err
+			}
 		}
 
-		// StatefulSet created successfully
-		// We will requeue the reconciliation so that we can ensure the state
-		// and move forward for the next operations
-		return ctrl.Result{RequeueAfter: time.Minute}, nil
-	} else if err != nil {
-		log.Error(err, "Failed to get StatefulSet")
-		// Let's return the error for the reconciliation be re-trigged again
-		return ctrl.Result{}, err
 	}
 
-	if !reflect.DeepEqual(service.Spec, foundService.Spec) {
-		foundService.Spec = service.Spec
-		log.Info("Reconciling StatefulSet %s/%s\n", service.Namespace, service.Name)
+	if dragonfly.Spec.PodMonitor {
+		foundPodMonitor := &monitoring.PodMonitor{TypeMeta: metav1.TypeMeta{
+			Kind:       "PodMonitor",
+			APIVersion: "monitoring.coreos.com/v1",
+		}}
+		podMonitor, podMonitorErr := r.podMonitorForDragonfly(dragonfly)
+		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundPodMonitor)
+		if err != nil && apierrors.IsNotFound(err) {
+			if podMonitorErr != nil {
+				log.Error(err, "Failed to define new PodMonitor resource for Dragonfly")
 
-		err = r.Update(context.TODO(), foundService)
-		if err != nil {
-			log.Error(err, "Failed to recincile deployment")
+				// The following implementation will update the status
+				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
+					Status: metav1.ConditionFalse, Reason: "Reconciling",
+					Message: fmt.Sprintf("Failed to create PodMonitor for the custom resource (%s): (%s)", dragonfly.Name, err)})
+
+				if err := r.Status().Update(ctx, dragonfly); err != nil {
+					log.Error(err, "Failed to update Dragonfly status")
+					return ctrl.Result{}, err
+				}
+
+				return ctrl.Result{}, err
+			}
+
+			log.Info("Creating a new PodMonitor",
+				"PodMonitor.Namespace", dragonfly.Namespace, "PodMonitor.Name", dragonfly.Name)
+			if err = r.Create(ctx, podMonitor); err != nil {
+				log.Error(err, "Failed to create new PodMonitor",
+					"PodMonitor.Namespace", dragonfly.Namespace, "PodMonitor.Name", dragonfly.Name)
+				return ctrl.Result{}, err
+			}
+
+			// PodMonitor created successfully
+			// We will requeue the reconciliation so that we can ensure the state
+			// and move forward for the next operations
+			return ctrl.Result{RequeueAfter: time.Minute}, nil
+		} else if err != nil {
+			log.Error(err, "Failed to get PodMonitor")
+			// Let's return the error for the reconciliation be re-trigged again
 			return ctrl.Result{}, err
+		}
+
+		if !reflect.DeepEqual(podMonitor.Spec, foundPodMonitor.Spec) {
+			foundPodMonitor.Spec = podMonitor.Spec
+			log.Info("Reconciling PodMonitor %s/%s\n", dragonfly.Namespace, dragonfly.Name)
+
+			err = r.Update(context.TODO(), foundPodMonitor)
+			if err != nil {
+				log.Error(err, "Failed to recincile deployment")
+				return ctrl.Result{}, err
+			}
 		}
 	}
 
@@ -568,6 +626,39 @@ func (r *DragonflyReconciler) statefulsetForDragonfly(dragonfly *dragonflyv1alph
 		return nil, err
 	}
 	return sts, nil
+}
+
+func (r *DragonflyReconciler) podMonitorForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*monitoring.PodMonitor, error) {
+	ls := labelsForDragonfly(dragonfly.Name)
+
+	svc := &monitoring.PodMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PodMonitor",
+			APIVersion: "monitoring.coreos.com/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dragonfly.Name,
+			Namespace: dragonfly.Namespace,
+		},
+		Spec: monitoring.PodMonitorSpec{
+			Selector: metav1.LabelSelector{
+				MatchLabels: ls,
+			},
+			PodMetricsEndpoints: []monitoring.PodMetricsEndpoint{
+				{
+					Path:   "/metrics",
+					Scheme: "http",
+					Port:   "dragonfly",
+				},
+			},
+		},
+	}
+	// TODO: Add HTTPS and eventually TLS validation
+
+	if err := ctrl.SetControllerReference(dragonfly, svc, r.Scheme); err != nil {
+		return nil, err
+	}
+	return svc, nil
 }
 
 func (r *DragonflyReconciler) serviceForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*v1.Service, error) {

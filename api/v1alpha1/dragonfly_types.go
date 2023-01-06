@@ -89,6 +89,9 @@ type DragonflySpec struct {
 	ExtraEnvs []v1.EnvVar `json:"extraEnvs,omitempty"`
 
 	// +optional
+	PodMonitor bool `json:"podMonitor,omitempty"`
+
+	// +optional
 	StatefulMode bool `json:"statefulMode,omitempty"`
 
 	// +optional

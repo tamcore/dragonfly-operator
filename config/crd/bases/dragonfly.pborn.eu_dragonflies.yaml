@@ -3458,6 +3458,8 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              podMonitor:
+                type: boolean
               podSecurityContext:
                 description: PodSecurityContext holds pod-level security attributes
                   and common container settings. Some fields are also present in container.securityContext.  Field
