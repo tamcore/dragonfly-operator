@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -538,16 +539,17 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 	containers, _ := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)
 
 	podSpec := &corev1.PodSpec{
-		Containers:         containers,
-		NodeSelector:       dragonfly.Spec.NodeSelector,
-		Affinity:           dragonfly.Spec.Affinity,
-		HostNetwork:        dragonfly.Spec.HostNetwork,
-		ImagePullSecrets:   dragonfly.Spec.ImagePullSecrets,
-		InitContainers:     dragonfly.Spec.InitContainers,
-		SecurityContext:    dragonfly.Spec.PodSecurityContext,
-		ServiceAccountName: dragonfly.Spec.ServiceAccountName,
-		Tolerations:        dragonfly.Spec.Tolerations,
-		Volumes:            volumes,
+		Affinity:                     dragonfly.Spec.Affinity,
+		AutomountServiceAccountToken: pointer.Bool(false),
+		Containers:                   containers,
+		HostNetwork:                  dragonfly.Spec.HostNetwork,
+		ImagePullSecrets:             dragonfly.Spec.ImagePullSecrets,
+		InitContainers:               dragonfly.Spec.InitContainers,
+		NodeSelector:                 dragonfly.Spec.NodeSelector,
+		SecurityContext:              dragonfly.Spec.PodSecurityContext,
+		ServiceAccountName:           dragonfly.Spec.ServiceAccountName,
+		Tolerations:                  dragonfly.Spec.Tolerations,
+		Volumes:                      volumes,
 	}
 
 	return podSpec
