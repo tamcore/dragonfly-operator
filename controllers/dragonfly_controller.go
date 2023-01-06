@@ -715,21 +715,23 @@ func labelsForDragonfly(name string) map[string]string {
 	}
 }
 
-func getVarEnvFallback(string, envVar string) string {
-	if string == "" {
-		if value, ok := os.LookupEnv(envVar); ok {
-			return value
+func getVarEnvFallback(preferred string, envVar string, latest string) string {
+	if preferred == "" {
+		if envValue, ok := os.LookupEnv(envVar); ok {
+			return envValue
+		} else {
+			return latest
 		}
 	}
-	return string
+	return preferred
 }
 
 // imageForDragonfly gets the Operand image which is managed by this controller
 // from the DRAGONFLY_IMAGE environment variable defined in the config/manager/manager.yaml
 func imageForDragonfly(imageRepository string, imageTag string) (string, error) {
 	image := fmt.Sprintf("%s:%s",
-		getVarEnvFallback(imageRepository, "DRAGONFLY_IMAGE_REPOSITORY"),
-		getVarEnvFallback(imageTag, "DRAGONFLY_IMAGE_TAG"),
+		getVarEnvFallback(imageRepository, "DRAGONFLY_IMAGE_REPOSITORY", "ghcr.io/dragonflydb/dragonfly"),
+		getVarEnvFallback(imageTag, "DRAGONFLY_IMAGE_TAG", "v0.13.1"),
 	)
 
 	return image, nil
