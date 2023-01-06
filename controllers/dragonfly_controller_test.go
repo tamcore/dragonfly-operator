@@ -68,7 +68,8 @@ var _ = Describe("Dragonfly controller", func() {
 			_ = k8sClient.Delete(ctx, namespace)
 
 			By("Removing the Image ENV VAR which stores the Operand image")
-			_ = os.Unsetenv("DRAGONFLY_IMAGE")
+			_ = os.Unsetenv("DRAGONFLY_IMAGE_REPOSITORY")
+			_ = os.Unsetenv("DRAGONFLY_IMAGE_TAG")
 		})
 
 		It("should successfully reconcile a custom resource for Dragonfly", func() {
