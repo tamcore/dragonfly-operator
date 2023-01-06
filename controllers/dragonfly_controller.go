@@ -28,6 +28,7 @@ import (
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -196,9 +197,60 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	// Check if the deployment already exists, if not create a new one
+	if dragonfly.Spec.StatefulMode {
+		found := &appsv1.StatefulSet{}
+		deploy, deployErr := r.statefulsetForDragonfly(dragonfly)
+		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, found)
+		if err != nil && apierrors.IsNotFound(err) {
+			if deployErr != nil {
+				log.Error(err, "Failed to define new StatefulSet resource for Dragonfly")
+
+				// The following implementation will update the status
+				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
+					Status: metav1.ConditionFalse, Reason: "Reconciling",
+					Message: fmt.Sprintf("Failed to create StatefulSet for the custom resource (%s): (%s)", dragonfly.Name, err)})
+
+				if err := r.Status().Update(ctx, dragonfly); err != nil {
+					log.Error(err, "Failed to update Dragonfly status")
+					return ctrl.Result{}, err
+				}
+
+				return ctrl.Result{}, err
+			}
+
+			log.Info("Creating a new StatefulSet",
+				"StatefulSet.Namespace", deploy.Namespace, "StatefulSet.Name", deploy.Name)
+			if err = r.Create(ctx, deploy); err != nil {
+				log.Error(err, "Failed to create new StatefulSet",
+					"StatefulSet.Namespace", deploy.Namespace, "StatefulSet.Name", deploy.Name)
+				return ctrl.Result{}, err
+			}
+
+			// StatefulSet created successfully
+			// We will requeue the reconciliation so that we can ensure the state
+			// and move forward for the next operations
+			return ctrl.Result{RequeueAfter: time.Minute}, nil
+		} else if err != nil {
+			log.Error(err, "Failed to get StatefulSet")
+			// Let's return the error for the reconciliation be re-trigged again
+			return ctrl.Result{}, err
+		}
+
+		if !reflect.DeepEqual(deploy.Spec, found.Spec) {
+			found.Spec = deploy.Spec
+			log.Info("Reconciling StatefulSet %s/%s\n", deploy.Namespace, deploy.Name)
+
+			err = r.Update(context.TODO(), found)
+			if err != nil {
+				log.Error(err, "Failed to recincile deployment")
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{Requeue: true}, nil
+	}
+
 	found := &appsv1.Deployment{}
-	// Define the deployment
 	deploy, deployErr := r.deploymentForDragonfly(dragonfly)
 	err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, found)
 	if err != nil && apierrors.IsNotFound(err) {
@@ -270,8 +322,7 @@ func (r *DragonflyReconciler) doFinalizerOperationsForDragonfly(cr *dragonflyv1a
 			cr.Namespace))
 }
 
-func (r *DragonflyReconciler) dragonflyPodSpec(
-	dragonfly *dragonflyv1alpha1.Dragonfly) *corev1.PodSpec {
+func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Dragonfly) *corev1.PodSpec {
 
 	// Get the Operand image
 	image, _ := imageForDragonfly(dragonfly.Spec.Image.Repository, dragonfly.Spec.Image.Tag)
@@ -312,7 +363,23 @@ func (r *DragonflyReconciler) dragonflyPodSpec(
 	var volumes []corev1.Volume
 	var volumeMounts []corev1.VolumeMount
 	volumeMounts = append(volumeMounts, dragonfly.Spec.VolumeMounts...)
+	volumeMounts = append(volumeMounts,
+		corev1.VolumeMount{
+			Name:      "data",
+			MountPath: "/data",
+		},
+	)
+
 	volumes = append(volumes, dragonfly.Spec.Volumes...)
+
+	if !dragonfly.Spec.StatefulMode {
+		volumes = append(volumes, corev1.Volume{
+			Name: "data",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
+	}
 
 	for _, s := range dragonfly.Spec.Secrets {
 		volumes = append(volumes, corev1.Volume{
@@ -364,7 +431,6 @@ func (r *DragonflyReconciler) dragonflyPodSpec(
 	containers, _ := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)
 
 	podSpec := &corev1.PodSpec{
-		// TODO: StatefulMode
 		Containers:         containers,
 		NodeSelector:       dragonfly.Spec.NodeSelector,
 		Affinity:           dragonfly.Spec.Affinity,
@@ -381,8 +447,7 @@ func (r *DragonflyReconciler) dragonflyPodSpec(
 }
 
 // deploymentForDragonfly returns a Dragonfly Deployment object
-func (r *DragonflyReconciler) deploymentForDragonfly(
-	dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.Deployment, error) {
+func (r *DragonflyReconciler) deploymentForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.Deployment, error) {
 	ls := labelsForDragonfly(dragonfly.Name)
 
 	podSpec := r.dragonflyPodSpec(dragonfly)
@@ -414,13 +479,12 @@ func (r *DragonflyReconciler) deploymentForDragonfly(
 	return dep, nil
 }
 
-func (r *DragonflyReconciler) statefulsetForDragonfly(
-	dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.StatefulSet, error) {
+func (r *DragonflyReconciler) statefulsetForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*appsv1.StatefulSet, error) {
 	ls := labelsForDragonfly(dragonfly.Name)
 
 	podSpec := r.dragonflyPodSpec(dragonfly)
 
-	dep := &appsv1.StatefulSet{
+	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dragonfly.Name,
 			Namespace: dragonfly.Namespace,
@@ -439,12 +503,22 @@ func (r *DragonflyReconciler) statefulsetForDragonfly(
 		},
 	}
 
-	// Set the ownerRef for the Deployment
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
-	if err := ctrl.SetControllerReference(dragonfly, dep, r.Scheme); err != nil {
+	// take care of the STS volume claim
+	stsClaim := v1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "data",
+		},
+		Spec: dragonfly.Spec.StatefulStorage,
+	}
+	if stsClaim.Spec.AccessModes == nil {
+		stsClaim.Spec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
+	}
+	sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, stsClaim)
+
+	if err := ctrl.SetControllerReference(dragonfly, sts, r.Scheme); err != nil {
 		return nil, err
 	}
-	return dep, nil
+	return sts, nil
 }
 
 // labelsForDragonfly returns the labels for selecting the resources
@@ -457,7 +531,6 @@ func labelsForDragonfly(name string) map[string]string {
 	// }
 	return map[string]string{"app.kubernetes.io/name": "Dragonfly",
 		"app.kubernetes.io/instance": name,
-		// "app.kubernetes.io/version":    imageTag,
 		"app.kubernetes.io/part-of":    "dragonfly-operator",
 		"app.kubernetes.io/created-by": "controller-manager",
 	}

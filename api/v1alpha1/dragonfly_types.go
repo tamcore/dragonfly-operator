@@ -92,6 +92,9 @@ type DragonflySpec struct {
 	StatefulMode bool `json:"statefulMode,omitempty"`
 
 	// +optional
+	StatefulStorage v1.PersistentVolumeClaimSpec `json:"statefulStorage,omitempty"`
+
+	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// +optional

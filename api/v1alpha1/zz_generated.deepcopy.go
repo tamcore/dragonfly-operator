@@ -149,6 +149,7 @@ func (in *DragonflySpec) DeepCopyInto(out *DragonflySpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	in.StatefulStorage.DeepCopyInto(&out.StatefulStorage)
 	if in.NodeSelector != nil {
 		in, out := &in.NodeSelector, &out.NodeSelector
 		*out = make(map[string]string, len(*in))

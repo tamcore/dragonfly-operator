@@ -18,6 +18,20 @@ stringData:
 apiVersion: dragonfly.pborn.eu/v1alpha1
 kind: Dragonfly
 metadata:
+  name: dragonfly-stateful
+  namespace: dragonfly
+spec:
+  replicaCount: 1
+  statefulMode: true
+  statefulStorage:
+    resources:
+      requests:
+        storage: 10Gi
+      # storageClassName: hdd
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
   name: dragonfly-sample
   namespace: dragonfly
 spec:
