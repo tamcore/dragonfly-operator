@@ -745,5 +745,8 @@ func (r *DragonflyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dragonflyv1alpha1.Dragonfly{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&appsv1.StatefulSet{}).
+		Owns(&v1.Service{}).
+		Owns(&monitoring.PodMonitor{}).
 		Complete(r)
 }
