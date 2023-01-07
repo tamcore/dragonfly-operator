@@ -275,107 +275,34 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if dragonfly.Spec.StatefulMode {
-		found := &appsv1.StatefulSet{}
-		deploy, deployErr := r.statefulsetForDragonfly(dragonfly)
-		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, found)
-		if err != nil && apierrors.IsNotFound(err) {
-			if deployErr != nil {
-				log.Error(err, "Failed to define new StatefulSet resource for Dragonfly")
-
-				// The following implementation will update the status
-				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-					Status: metav1.ConditionFalse, Reason: "Reconciling",
-					Message: fmt.Sprintf("Failed to create StatefulSet for the custom resource (%s): (%s)", dragonfly.Name, err)})
-
-				if err := r.Status().Update(ctx, dragonfly); err != nil {
-					log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
-					return ctrl.Result{}, err
-				}
-
-				return ctrl.Result{}, err
-			}
-
-			log.Info("Creating a new StatefulSet",
-				"StatefulSet.Namespace", deploy.Namespace, "StatefulSet.Name", deploy.Name)
-			if err = r.Create(ctx, deploy); err != nil {
-				log.Error(err, "Failed to create new StatefulSet",
-					"StatefulSet.Namespace", deploy.Namespace, "StatefulSet.Name", deploy.Name)
-				return ctrl.Result{}, err
-			}
-
-			// StatefulSet created successfully
-			// We will requeue the reconciliation so that we can ensure the state
-			// and move forward for the next operations
-			return ctrl.Result{RequeueAfter: time.Minute}, nil
-		} else if err != nil {
-			log.Error(err, "Failed to get Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-			// Let's return the error for the reconciliation be re-trigged again
-			return ctrl.Result{}, err
-		}
-
-		if !reflect.DeepEqual(deploy.Spec, found.Spec) {
-			found.Spec = deploy.Spec
-			log.Info("Reconciling StatefulSet (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-
-			err = r.Update(context.TODO(), found)
-			if err != nil {
-				log.Error(err, "Failed to reconcile StatefulSet (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-				return ctrl.Result{}, err
-			}
-		}
-
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	found := &appsv1.Deployment{}
-	deploy, deployErr := r.deploymentForDragonfly(dragonfly)
-	err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, found)
-	if err != nil && apierrors.IsNotFound(err) {
-		if deployErr != nil {
-			log.Error(err, "Failed to define new Deployment resource for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-
-			// The following implementation will update the status
-			meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-				Status: metav1.ConditionFalse, Reason: "Reconciling",
-				Message: fmt.Sprintf("Failed to create Deployment for the custom resource (%s): (%s)", dragonfly.Name, err)})
-
-			if err := r.Status().Update(ctx, dragonfly); err != nil {
-				log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, err
-		}
-
-		log.Info("Creating a new Deployment",
-			"Deployment.Namespace", deploy.Namespace, "Deployment.Name", deploy.Name)
-		if err = r.Create(ctx, deploy); err != nil {
-			log.Error(err, "Failed to create new Deployment",
-				"Deployment.Namespace", deploy.Namespace, "Deployment.Name", deploy.Name)
-			return ctrl.Result{}, err
-		}
-
-		// Deployment created successfully
-		// We will requeue the reconciliation so that we can ensure the state
-		// and move forward for the next operations
-		return ctrl.Result{RequeueAfter: time.Minute}, nil
-	} else if err != nil {
-		log.Error(err, "Failed to get Deployment (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-		// Let's return the error for the reconciliation be re-trigged again
-		return ctrl.Result{}, err
-	}
-
-	if !reflect.DeepEqual(deploy.Spec, found.Spec) {
-		found.Spec = deploy.Spec
-		log.Info("Reconciling Deployment (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-
-		err = r.Update(context.TODO(), found)
+		var have appsv1.StatefulSet
+		have.Name = dragonfly.Name
+		have.Namespace = dragonfly.Namespace
+		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
+			wants, _ := r.statefulsetForDragonfly(dragonfly)
+			have.Spec = wants.Spec
+			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
+		})
 		if err != nil {
-			log.Error(err, "Failed to reconcile Deployment (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
+			log.Error(err, "unable to ensure StatefulSet is correct")
 			return ctrl.Result{}, err
 		}
 	}
 
+	if !dragonfly.Spec.StatefulMode {
+		var have appsv1.Deployment
+		have.Name = dragonfly.Name
+		have.Namespace = dragonfly.Namespace
+		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
+			wants, _ := r.deploymentForDragonfly(dragonfly)
+			have.Spec = wants.Spec
+			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
+		})
+		if err != nil {
+			log.Error(err, "unable to ensure StatefulSet is correct")
+			return ctrl.Result{}, err
+		}
+	}
 	return ctrl.Result{Requeue: true}, nil
 }
 
