@@ -18,7 +18,24 @@ stringData:
 apiVersion: dragonfly.pborn.eu/v1alpha1
 kind: Dragonfly
 metadata:
-  name: dragonfly-stateful
+  name: dragonfly
+  namespace: dragonfly
+spec:
+  replicaCount: 1
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
+  name: dragonfly-stateful-without-storage-request
+  namespace: dragonfly
+spec:
+  replicaCount: 1
+  statefulMode: true
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
+  name: dragonfly-stateful-with-storage-request
   namespace: dragonfly
 spec:
   replicaCount: 1
@@ -27,12 +44,11 @@ spec:
     resources:
       requests:
         storage: 10Gi
-      # storageClassName: hdd
 ---
 apiVersion: dragonfly.pborn.eu/v1alpha1
 kind: Dragonfly
 metadata:
-  name: dragonfly-sample
+  name: dragonfly-to-the-moon
   namespace: dragonfly
 spec:
   podMonitor: true
