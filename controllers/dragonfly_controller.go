@@ -31,16 +31,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"time"
+	// "time"
 
 	dragonflyv1alpha1 "github.com/tamcore/dragonfly-operator/api/v1alpha1"
 )
@@ -221,56 +219,17 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if dragonfly.Spec.PodMonitor {
-		foundPodMonitor := &monitoring.PodMonitor{TypeMeta: metav1.TypeMeta{
-			Kind:       "PodMonitor",
-			APIVersion: "monitoring.coreos.com/v1",
-		}}
-		podMonitor, podMonitorErr := r.podMonitorForDragonfly(dragonfly)
-		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundPodMonitor)
-		if err != nil && apierrors.IsNotFound(err) {
-			if podMonitorErr != nil {
-				log.Error(err, "Failed to define new PodMonitor resource for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-
-				// The following implementation will update the status
-				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-					Status: metav1.ConditionFalse, Reason: "Reconciling",
-					Message: fmt.Sprintf("Failed to create PodMonitor for the custom resource (%s): (%s)", dragonfly.Name, err)})
-
-				if err := r.Status().Update(ctx, dragonfly); err != nil {
-					log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
-					return ctrl.Result{}, err
-				}
-
-				return ctrl.Result{}, err
-			}
-
-			log.Info("Creating a new PodMonitor",
-				"PodMonitor.Namespace", dragonfly.Namespace, "PodMonitor.Name", dragonfly.Name)
-			if err = r.Create(ctx, podMonitor); err != nil {
-				log.Error(err, "Failed to create new PodMonitor",
-					"PodMonitor.Namespace", dragonfly.Namespace, "PodMonitor.Name", dragonfly.Name)
-				return ctrl.Result{}, err
-			}
-
-			// PodMonitor created successfully
-			// We will requeue the reconciliation so that we can ensure the state
-			// and move forward for the next operations
-			return ctrl.Result{RequeueAfter: time.Minute}, nil
-		} else if err != nil {
-			log.Error(err, "Failed to get PodMonitor (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-			// Let's return the error for the reconciliation be re-trigged again
+		var have monitoring.PodMonitor
+		have.Name = dragonfly.Name
+		have.Namespace = dragonfly.Namespace
+		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
+			wants, _ := r.podMonitorForDragonfly(dragonfly)
+			have.Spec = wants.Spec
+			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
+		})
+		if err != nil {
+			log.Error(err, "unable to ensure Service is correct")
 			return ctrl.Result{}, err
-		}
-
-		if !reflect.DeepEqual(podMonitor.Spec, foundPodMonitor.Spec) {
-			foundPodMonitor.Spec = podMonitor.Spec
-			log.Info("Reconciling PodMonitor (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-
-			err = r.Update(context.TODO(), foundPodMonitor)
-			if err != nil {
-				log.Error(err, "Failed to reconcile deployment")
-				return ctrl.Result{}, err
-			}
 		}
 	}
 
