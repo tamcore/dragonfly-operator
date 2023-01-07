@@ -261,7 +261,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
 		})
 		if err != nil {
-			log.Error(err, "unable to ensure StatefulSet is correct")
+			log.Error(err, "unable to ensure Deployment is correct")
 			return ctrl.Result{}, err
 		}
 	}
