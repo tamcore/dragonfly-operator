@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -57,6 +58,8 @@ const (
 
 	dragonflySecretDir    = "/etc/dragonfly/secret"
 	dragonflyConfigMapDir = "/etc/dragonfly/config"
+
+	dragonflyVolumeClaimDefaultSize = "1Gi"
 )
 
 // DragonflyReconciler reconciles a Dragonfly object
@@ -476,6 +479,14 @@ func (r *DragonflyReconciler) statefulsetForDragonfly(dragonfly *dragonflyv1alph
 	}
 	if stsClaim.Spec.AccessModes == nil {
 		stsClaim.Spec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
+	}
+	if stsClaim.Spec.Resources.Requests.Storage().IsZero() {
+		defaultSize := resource.MustParse(dragonflyVolumeClaimDefaultSize)
+		stsClaim.Spec.Resources = v1.ResourceRequirements{
+			Requests: v1.ResourceList{
+				v1.ResourceStorage: defaultSize,
+			},
+		}
 	}
 	sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, stsClaim)
 
