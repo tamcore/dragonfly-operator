@@ -204,56 +204,20 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		dragonfly.Spec.RedisPort = "6379"
 	}
 
+	// Just something quick to get around variable scopes
 	if true {
-		foundService := &v1.Service{}
-		service, serviceErr := r.serviceForDragonfly(dragonfly)
-		err = r.Get(ctx, types.NamespacedName{Name: dragonfly.Name, Namespace: dragonfly.Namespace}, foundService)
-		if err != nil && apierrors.IsNotFound(err) {
-			if serviceErr != nil {
-				log.Error(err, "Failed to define new Service for Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-
-				// The following implementation will update the status
-				meta.SetStatusCondition(&dragonfly.Status.Conditions, metav1.Condition{Type: typeAvailableDragonfly,
-					Status: metav1.ConditionFalse, Reason: "Reconciling",
-					Message: fmt.Sprintf("Failed to create Service for the custom resource (%s): (%s)", dragonfly.Name, err)})
-
-				if err := r.Status().Update(ctx, dragonfly); err != nil {
-					log.Error(err, "Failed to update Dragonfly (", dragonfly.Name, " in ", dragonfly.Namespace, ") status")
-					return ctrl.Result{}, err
-				}
-
-				return ctrl.Result{}, err
-			}
-
-			log.Info("Creating a new Service",
-				"Service.Namespace", service.Namespace, "Service.Name", service.Name)
-			if err = r.Create(ctx, service); err != nil {
-				log.Error(err, "Failed to create new Service",
-					"Service.Namespace", service.Namespace, "Service.Name", service.Name)
-				return ctrl.Result{}, err
-			}
-
-			// Service created successfully
-			// We will requeue the reconciliation so that we can ensure the state
-			// and move forward for the next operations
-			return ctrl.Result{RequeueAfter: time.Minute}, nil
-		} else if err != nil {
-			log.Error(err, "Failed to get Service (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-			// Let's return the error for the reconciliation be re-trigged again
+		var have corev1.Service
+		have.Name = dragonfly.Name
+		have.Namespace = dragonfly.Namespace
+		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
+			wants, _ := r.serviceForDragonfly(dragonfly)
+			have.Spec = wants.Spec
+			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
+		})
+		if err != nil {
+			log.Error(err, "unable to ensure Service is correct")
 			return ctrl.Result{}, err
 		}
-
-		if !reflect.DeepEqual(service.Spec, foundService.Spec) {
-			foundService.Spec = service.Spec
-			log.Info("Reconciling Service (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-
-			err = r.Update(context.TODO(), foundService)
-			if err != nil {
-				log.Error(err, "Failed to reconcile Service (", dragonfly.Name, " in ", dragonfly.Namespace, ")")
-				return ctrl.Result{}, err
-			}
-		}
-
 	}
 
 	if dragonfly.Spec.PodMonitor {
