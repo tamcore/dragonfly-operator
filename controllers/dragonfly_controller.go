@@ -47,10 +47,13 @@ const dragonflyFinalizer = "dragonfly.pborn.eu/finalizer"
 
 // Definitions to manage status conditions
 const (
-	// typeAvailableDragonfly represents the status of the Deployment reconciliation
+	// typeAvailableDragonfly represents the status of the reconciliation
 	typeAvailableDragonfly = "Available"
 	// typeDegradedDragonfly represents the status used when the custom resource is deleted and the finalizer operations are must to occur.
 	typeDegradedDragonfly = "Degraded"
+
+	dragonflyDefaultRepository = "ghcr.io/dragonflydb/dragonfly"
+	dragonflyDefaultTag        = "v0.13.1"
 )
 
 // DragonflyReconciler reconciles a Dragonfly object
@@ -286,8 +289,6 @@ func (r *DragonflyReconciler) doFinalizerOperationsForDragonfly(cr *dragonflyv1a
 }
 
 func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Dragonfly) *corev1.PodSpec {
-
-	// Get the Operand image
 	image, _ := imageForDragonfly(dragonfly.Spec.Image.Repository, dragonfly.Spec.Image.Tag)
 
 	var ports []corev1.ContainerPort
@@ -577,12 +578,10 @@ func getVarEnvFallback(preferred string, envVar string, latest string) string {
 	return preferred
 }
 
-// imageForDragonfly gets the Operand image which is managed by this controller
-// from the DRAGONFLY_IMAGE environment variable defined in the config/manager/manager.yaml
 func imageForDragonfly(imageRepository string, imageTag string) (string, error) {
 	image := fmt.Sprintf("%s:%s",
-		getVarEnvFallback(imageRepository, "DRAGONFLY_IMAGE_REPOSITORY", "ghcr.io/dragonflydb/dragonfly"),
-		getVarEnvFallback(imageTag, "DRAGONFLY_IMAGE_TAG", "v0.13.1"),
+		getVarEnvFallback(imageRepository, "DRAGONFLY_IMAGE_REPOSITORY", dragonflyDefaultRepository),
+		getVarEnvFallback(imageTag, "DRAGONFLY_IMAGE_TAG", dragonflyDefaultTag),
 	)
 
 	return image, nil
