@@ -54,6 +54,9 @@ const (
 
 	dragonflyDefaultRepository = "ghcr.io/dragonflydb/dragonfly"
 	dragonflyDefaultTag        = "v0.13.1"
+
+	dragonflySecretDir    = "/etc/dragonfly/secret"
+	dragonflyConfigMapDir = "/etc/dragonfly/config"
 )
 
 // DragonflyReconciler reconciles a Dragonfly object
@@ -353,7 +356,7 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      fmt.Sprintf("secret-%s", s),
 			ReadOnly:  true,
-			MountPath: path.Join("/etc/dragonfly/secret/", s),
+			MountPath: path.Join(dragonflySecretDir, s),
 		})
 	}
 
@@ -371,7 +374,7 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      fmt.Sprintf("configmap-%s", c),
 			ReadOnly:  true,
-			MountPath: path.Join("/etc/dragonfly/configs/", c),
+			MountPath: path.Join(dragonflyConfigMapDir, c),
 		})
 	}
 
