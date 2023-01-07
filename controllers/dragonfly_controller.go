@@ -129,7 +129,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// occurs before the custom resource to be deleted.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
 	if !controllerutil.ContainsFinalizer(dragonfly, dragonflyFinalizer) {
-		log.Info("Adding Finalizer for Dragonfly", dragonfly.Namespace, " in ", dragonfly.Namespace)
+		log.Info(fmt.Sprintf("Adding Finalizer for Dragonfly: %s in %s", dragonfly.Name, dragonfly.Namespace))
 		if ok := controllerutil.AddFinalizer(dragonfly, dragonflyFinalizer); !ok {
 			log.Error(err, "Failed to add finalizer into the custom resource")
 			return ctrl.Result{Requeue: true}, nil
