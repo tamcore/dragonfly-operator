@@ -26,7 +26,7 @@ import (
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
+	// v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -471,20 +471,20 @@ func (r *DragonflyReconciler) statefulsetForDragonfly(dragonfly *dragonflyv1alph
 	}
 
 	// take care of the STS volume claim
-	stsClaim := v1.PersistentVolumeClaim{
+	stsClaim := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "data",
 		},
 		Spec: dragonfly.Spec.StatefulStorage,
 	}
 	if stsClaim.Spec.AccessModes == nil {
-		stsClaim.Spec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
+		stsClaim.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	}
 	if stsClaim.Spec.Resources.Requests.Storage().IsZero() {
 		defaultSize := resource.MustParse(dragonflyVolumeClaimDefaultSize)
-		stsClaim.Spec.Resources = v1.ResourceRequirements{
-			Requests: v1.ResourceList{
-				v1.ResourceStorage: defaultSize,
+		stsClaim.Spec.Resources = corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: defaultSize,
 			},
 		}
 	}
@@ -529,18 +529,18 @@ func (r *DragonflyReconciler) podMonitorForDragonfly(dragonfly *dragonflyv1alpha
 	return svc, nil
 }
 
-func (r *DragonflyReconciler) serviceForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*v1.Service, error) {
+func (r *DragonflyReconciler) serviceForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*corev1.Service, error) {
 	ls := labelsForDragonfly(dragonfly.Name)
 
-	svc := &v1.Service{
+	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dragonfly.Name,
 			Namespace: dragonfly.Namespace,
 		},
-		Spec: v1.ServiceSpec{
-			Type:     v1.ServiceTypeClusterIP,
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
 			Selector: ls,
-			Ports: []v1.ServicePort{
+			Ports: []corev1.ServicePort{
 				{
 					Name:       "dragonfly",
 					Protocol:   "TCP",
@@ -552,7 +552,7 @@ func (r *DragonflyReconciler) serviceForDragonfly(dragonfly *dragonflyv1alpha1.D
 	}
 
 	if dragonfly.Spec.MemcachePort != "" {
-		svc.Spec.Ports = append(svc.Spec.Ports, v1.ServicePort{
+		svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{
 			Name:       "memcache",
 			Protocol:   "TCP",
 			Port:       intstr.Parse(dragonfly.Spec.MemcachePort).IntVal,
@@ -609,7 +609,7 @@ func (r *DragonflyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&dragonflyv1alpha1.Dragonfly{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
-		Owns(&v1.Service{}).
+		Owns(&corev1.Service{}).
 		Owns(&monitoring.PodMonitor{}).
 		Complete(r)
 }
