@@ -381,6 +381,25 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 		})
 	}
 
+	probehandler := corev1.ProbeHandler{
+		TCPSocket: &corev1.TCPSocketAction{
+			Port: intstr.FromString("dragonfly"),
+		},
+	}
+
+	readinessProbe := &corev1.Probe{
+		TimeoutSeconds:      5,
+		InitialDelaySeconds: 5,
+		ProbeHandler:        probehandler,
+	}
+
+	livenessProbe := &corev1.Probe{
+		InitialDelaySeconds: 30,
+		TimeoutSeconds:      1,
+		FailureThreshold:    6,
+		ProbeHandler:        probehandler,
+	}
+
 	dragonflyContainer := []corev1.Container{{
 		Name:            "dragonfly",
 		Command:         dragonfly.Spec.CommandOverride,
@@ -392,6 +411,8 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 		Resources:       dragonfly.Spec.Resources,
 		SecurityContext: dragonfly.Spec.SecurityContext,
 		VolumeMounts:    volumeMounts,
+		ReadinessProbe:  readinessProbe,
+		LivenessProbe:   livenessProbe,
 	}}
 
 	containers, _ := k8sutil.MergePatchContainers(dragonflyContainer, dragonfly.Spec.Containers)

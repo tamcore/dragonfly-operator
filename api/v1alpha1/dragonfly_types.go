@@ -111,6 +111,11 @@ type DragonflySpec struct {
 
 	// +optional
 	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// // +optional
+	// ReadinessProbe []v1.Probe `json:"readinessProbe,omitempty"`
+	// // +optional
+	// LivenessProbe []v1.Probe `json:"livenessProbe,omitempty"`
 }
 
 type Image struct {
