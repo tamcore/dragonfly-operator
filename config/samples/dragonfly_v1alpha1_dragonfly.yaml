@@ -26,6 +26,18 @@ spec:
 apiVersion: dragonfly.pborn.eu/v1alpha1
 kind: Dragonfly
 metadata:
+  name: dragonfly-tls
+  namespace: dragonfly
+spec:
+  replicaCount: 1
+  tls:
+    existingSecret:
+      secretName: dragonfly-server-tls
+  podMonitor: true
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
   name: dragonfly-stateful-without-storage-request
   namespace: dragonfly
 spec:
