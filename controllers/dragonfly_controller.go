@@ -59,6 +59,8 @@ const (
 	dragonflySecretDir    = "/etc/dragonfly/secret"
 	dragonflyConfigMapDir = "/etc/dragonfly/config"
 
+	dragonflyTlsDir = "/etc/dragonfly/tls"
+
 	dragonflyVolumeClaimDefaultSize = "1Gi"
 )
 
@@ -347,6 +349,26 @@ func (r *DragonflyReconciler) dragonflyPodSpec(dragonfly *dragonflyv1alpha1.Drag
 		})
 	}
 
+	if dragonfly.Spec.TlsConfig.ExistingSecret.Size() > 0 {
+		volumes = append(volumes, corev1.Volume{
+			Name: "tls",
+			VolumeSource: corev1.VolumeSource{
+				Secret: dragonfly.Spec.TlsConfig.ExistingSecret,
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "tls",
+			ReadOnly:  true,
+			MountPath: dragonflyTlsDir,
+		})
+		tlsArgs := []string{
+			"--tls",
+			fmt.Sprintf("--tls_cert_file=%s/tls.crt", dragonflyTlsDir),
+			fmt.Sprintf("--tls_key_file=%s/tls.key", dragonflyTlsDir),
+		}
+		args = append(args, tlsArgs...)
+	}
+
 	for _, s := range dragonfly.Spec.Secrets {
 		volumes = append(volumes, corev1.Volume{
 			Name: fmt.Sprintf("secret-%s", s),
@@ -520,6 +542,16 @@ func (r *DragonflyReconciler) statefulsetForDragonfly(dragonfly *dragonflyv1alph
 func (r *DragonflyReconciler) podMonitorForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*monitoring.PodMonitor, error) {
 	ls := labelsForDragonfly(dragonfly.Name)
 
+	PodMetricsEndpointScheme := "http"
+	PodMetricsEndpointTLSConfig := monitoring.PodMetricsEndpointTLSConfig{
+		SafeTLSConfig: monitoring.SafeTLSConfig{
+			InsecureSkipVerify: true,
+		},
+	}
+	if dragonfly.Spec.TlsConfig.ExistingSecret.Size() > 0 {
+		PodMetricsEndpointScheme = "https"
+	}
+
 	svc := &monitoring.PodMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PodMonitor",
@@ -535,14 +567,14 @@ func (r *DragonflyReconciler) podMonitorForDragonfly(dragonfly *dragonflyv1alpha
 			},
 			PodMetricsEndpoints: []monitoring.PodMetricsEndpoint{
 				{
-					Path:   "/metrics",
-					Scheme: "http",
-					Port:   "dragonfly",
+					Path:      "/metrics",
+					Scheme:    PodMetricsEndpointScheme,
+					Port:      "dragonfly",
+					TLSConfig: &PodMetricsEndpointTLSConfig,
 				},
 			},
 		},
 	}
-	// TODO: Add HTTPS and eventually TLS validation
 
 	if err := ctrl.SetControllerReference(dragonfly, svc, r.Scheme); err != nil {
 		return nil, err

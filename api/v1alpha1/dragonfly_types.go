@@ -102,6 +102,9 @@ type DragonflySpec struct {
 	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 
 	// +optional
+	TlsConfig TlsConfig `json:"tls,omitempty"`
+
+	// +optional
 	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
 
 	// +optional
@@ -117,6 +120,15 @@ type Image struct {
 
 	// +optional
 	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty"`
+}
+
+type TlsConfig struct {
+	// +optional
+	ExistingSecret *v1.SecretVolumeSource `json:"existingSecret,omitempty"`
+
+	// TODO
+	// +optional
+	// CreateSecret bool `json:"createSecret,omitempty"`
 }
 
 // DragonflyStatus defines the observed state of Dragonfly
