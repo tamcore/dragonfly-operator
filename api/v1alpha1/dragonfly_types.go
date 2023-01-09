@@ -21,13 +21,28 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // DragonflySpec defines the desired state of Dragonfly
 type DragonflySpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// +optional
+	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
+	// +optional
+	CommandOverride []string `json:"commandOverride,omitempty"`
+
+	// +optional
+	ConfigMaps []string `json:"configMaps,omitempty"`
+
+	// +optional
+	Containers []v1.Container `json:"containers,omitempty"`
+
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty"`
+
+	// +optional
+	ExtraEnvs []v1.EnvVar `json:"extraEnvs,omitempty"`
+
+	// +optional
+	HostNetwork bool `json:"hostNetwork,omitempty"`
 
 	// +optional
 	Image Image `json:"image,omitempty"`
@@ -35,13 +50,31 @@ type DragonflySpec struct {
 	// +optional
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
-	// Size defines the number of Dragonfly instances
-	// The following markers will use OpenAPI v3 schema to validate the value
-	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=3
-	// +kubebuilder:validation:ExclusiveMaximum=false
+	// +optional
+	InitContainers []v1.Container `json:"initContainers,omitempty"`
 
+	// +optional
+	// LivenessProbe []v1.Probe `json:"livenessProbe,omitempty"`
+
+	// +optional
+	MemcachePort string `json:"memcachePort,omitempty"`
+
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// +optional
+	PodMonitor bool `json:"podMonitor,omitempty"`
+
+	// +optional
+	PodSecurityContext *v1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// +optional
+	// ReadinessProbe []v1.Probe `json:"readinessProbe,omitempty"`
+
+	// +optional
+	RedisPort string `json:"redisPort,omitempty"`
+
+	// +kubebuilder:validation:Minimum=1
 	// +optional
 	ReplicaCount int32 `json:"replicaCount,omitempty"`
 
@@ -50,46 +83,14 @@ type DragonflySpec struct {
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 
 	// +optional
-	Affinity *v1.Affinity `json:"affinity,omitempty"`
-
-	// +optional
-	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+	Secrets []string `json:"secrets,omitempty"`
 
 	// +optional
 	SecurityContext *v1.SecurityContext `json:"securityContext,omitempty"`
 
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ServiceAccount name",xDescriptors="urn:alm:descriptor:io.kubernetes:ServiceAccount"
 	// +optional
-	PodSecurityContext *v1.PodSecurityContext `json:"podSecurityContext,omitempty"`
-
-	// +operator-sdk:csv:custom	resourcedefinitions:type=spec,displayName="ServiceAccount name",xDescriptors="urn:alm:descriptor:io.kubernetes:ServiceAccount"
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
-
-	// +optional
-	Containers []v1.Container `json:"containers,omitempty"`
-
-	// +optional
-	InitContainers []v1.Container `json:"initContainers,omitempty"`
-
-	// +optional
-	HostNetwork bool `json:"hostNetwork,omitempty"`
-
-	// +optional
-	RedisPort string `json:"redisPort,omitempty"`
-
-	// +optional
-	MemcachePort string `json:"memcachePort,omitempty"`
-
-	// +optional
-	ExtraArgs []string `json:"extraArgs,omitempty"`
-
-	// +optional
-	CommandOverride []string `json:"commandOverride,omitempty"`
-
-	// +optional
-	ExtraEnvs []v1.EnvVar `json:"extraEnvs,omitempty"`
-
-	// +optional
-	PodMonitor bool `json:"podMonitor,omitempty"`
 
 	// +optional
 	StatefulMode bool `json:"statefulMode,omitempty"`
@@ -98,29 +99,23 @@ type DragonflySpec struct {
 	StatefulStorage v1.PersistentVolumeClaimSpec `json:"statefulStorage,omitempty"`
 
 	// +optional
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
-	// +optional
-	Secrets []string `json:"secrets,omitempty"`
-
-	// +optional
-	ConfigMaps []string `json:"configMaps,omitempty"`
-
-	// +optional
-	Volumes []v1.Volume `json:"volumes,omitempty"`
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 
 	// +optional
 	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// // +optional
-	// ReadinessProbe []v1.Probe `json:"readinessProbe,omitempty"`
-	// // +optional
-	// LivenessProbe []v1.Probe `json:"livenessProbe,omitempty"`
+	// +optional
+	Volumes []v1.Volume `json:"volumes,omitempty"`
 }
 
 type Image struct {
-	Repository string        `json:"repository,omitempty"`
-	Tag        string        `json:"tag,omitempty"`
+	// +optional
+	Repository string `json:"repository,omitempty"`
+
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// +optional
 	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty"`
 }
 

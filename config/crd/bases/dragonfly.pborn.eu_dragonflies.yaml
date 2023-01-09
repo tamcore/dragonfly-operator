@@ -3630,7 +3630,6 @@ spec:
                 type: string
               replicaCount:
                 format: int32
-                maximum: 3
                 minimum: 1
                 type: integer
               resources:
