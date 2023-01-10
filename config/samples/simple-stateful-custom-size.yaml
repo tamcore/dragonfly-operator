@@ -1,0 +1,12 @@
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
+  name: dragonfly-stateful-custom-size
+spec:
+  replicaCount: 1
+  statefulMode: true
+  statefulStorage:
+    resources:
+      requests:
+        storage: 10Gi

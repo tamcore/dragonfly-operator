@@ -4,5 +4,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: ttl.sh/dragonfly-controller-1db42df
-  newTag: 24h
+  newName: ghcr.io/tamcore/dragonfly-operator
+  newTag: latest

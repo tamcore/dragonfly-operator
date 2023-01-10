@@ -1,0 +1,7 @@
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
+  name: dragonfly
+spec:
+  replicaCount: 1

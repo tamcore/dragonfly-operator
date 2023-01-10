@@ -1,0 +1,10 @@
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
+  name: dragonfly-tls
+spec:
+  replicaCount: 1
+  tls:
+    existingSecret:
+      secretName: dragonfly-server-tls
