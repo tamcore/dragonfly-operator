@@ -22,7 +22,7 @@ import (
 	"os"
 	"path"
 	// "strings"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -230,7 +230,7 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if dragonfly.Spec.PodMonitor {
-		var have monitoring.PodMonitor
+		var have monitoringv1.PodMonitor
 		have.Name = dragonfly.Name
 		have.Namespace = dragonfly.Namespace
 		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
@@ -539,32 +539,32 @@ func (r *DragonflyReconciler) statefulsetForDragonfly(dragonfly *dragonflyv1alph
 	return sts, nil
 }
 
-func (r *DragonflyReconciler) podMonitorForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*monitoring.PodMonitor, error) {
+func (r *DragonflyReconciler) podMonitorForDragonfly(dragonfly *dragonflyv1alpha1.Dragonfly) (*monitoringv1.PodMonitor, error) {
 	ls := labelsForDragonfly(dragonfly.Name)
 
 	PodMetricsEndpointScheme := "http"
-	PodMetricsEndpointTLSConfig := monitoring.PodMetricsEndpointTLSConfig{}
+	PodMetricsEndpointTLSConfig := monitoringv1.PodMetricsEndpointTLSConfig{}
 	if dragonfly.Spec.TlsConfig.ExistingSecret != nil {
 		PodMetricsEndpointScheme = "https"
-		PodMetricsEndpointTLSConfig.SafeTLSConfig = monitoring.SafeTLSConfig{
+		PodMetricsEndpointTLSConfig.SafeTLSConfig = monitoringv1.SafeTLSConfig{
 			InsecureSkipVerify: true,
 		}
 	}
 
-	svc := &monitoring.PodMonitor{
+	svc := &monitoringv1.PodMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PodMonitor",
-			APIVersion: "monitoring.coreos.com/v1",
+			APIVersion: "monitoringv1.coreos.com/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dragonfly.Name,
 			Namespace: dragonfly.Namespace,
 		},
-		Spec: monitoring.PodMonitorSpec{
+		Spec: monitoringv1.PodMonitorSpec{
 			Selector: metav1.LabelSelector{
 				MatchLabels: ls,
 			},
-			PodMetricsEndpoints: []monitoring.PodMetricsEndpoint{
+			PodMetricsEndpoints: []monitoringv1.PodMetricsEndpoint{
 				{
 					Path:      "/metrics",
 					Scheme:    PodMetricsEndpointScheme,
@@ -662,6 +662,6 @@ func (r *DragonflyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
-		Owns(&monitoring.PodMonitor{}).
+		Owns(&monitoringv1.PodMonitor{}).
 		Complete(r)
 }
