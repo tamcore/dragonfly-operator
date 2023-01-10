@@ -543,13 +543,12 @@ func (r *DragonflyReconciler) podMonitorForDragonfly(dragonfly *dragonflyv1alpha
 	ls := labelsForDragonfly(dragonfly.Name)
 
 	PodMetricsEndpointScheme := "http"
-	PodMetricsEndpointTLSConfig := monitoring.PodMetricsEndpointTLSConfig{
-		SafeTLSConfig: monitoring.SafeTLSConfig{
-			InsecureSkipVerify: true,
-		},
-	}
-	if dragonfly.Spec.TlsConfig.ExistingSecret.Size() > 0 {
+	PodMetricsEndpointTLSConfig := monitoring.PodMetricsEndpointTLSConfig{}
+	if dragonfly.Spec.TlsConfig.ExistingSecret != nil {
 		PodMetricsEndpointScheme = "https"
+		PodMetricsEndpointTLSConfig.SafeTLSConfig = monitoring.SafeTLSConfig{
+			InsecureSkipVerify: true,
+		}
 	}
 
 	svc := &monitoring.PodMonitor{
