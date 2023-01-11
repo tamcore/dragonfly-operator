@@ -1,7 +1,12 @@
-
 # Image URL to use all building/pushing image targets
 # IMG ?= ttl.sh/dragonfly-controller-$(shell git rev-parse --short HEAD):24h
-IMG ?= ghcr.io/tamcore/dragonfly-operator:latest
+VERSION ?= latest
+IMG ?= ghcr.io/tamcore/dragonfly-operator:$(VERSION)
+OCI ?= ghcr.io/tamcore/dragonfly-operator/chart
+OCI_VERSION ?= $(VERSION)
+
+CHART_NAME ?= dragonfly-operator
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.25.0
 
@@ -120,6 +125,15 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
+.PHONY: helm
+helm: manifests kustomize helmify ## Generate helm chart
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | $(HELMIFY) -crd-dir -image-pull-secrets chart/$(CHART_NAME)
+
+.PHONE: helm-push # Package and push helm chart
+helm-push:
+		helm push $(shell helm package chart/$(CHART_NAME) --app-version $(VERSION) --version $(OCI_VERSION) | cut -d " " -f 8) oci://$(OCI)
+
 ##@ Build Dependencies
 
 ## Location to install dependencies to
@@ -131,10 +145,12 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+HELMIFY = $(LOCALBIN)/helmify
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
+HELMIFY_VERSION ?= v0.3.22
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -156,3 +172,6 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+helmify: $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/arttor/helmify/cmd/helmify@$(HELMIFY_VERSION)
