@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/tamcore/dragonfly-operator
-  newTag: latest
+  newTag: 0.0.1-alpha.3

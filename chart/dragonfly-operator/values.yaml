@@ -13,7 +13,7 @@ controllerManager:
   manager:
     image:
       repository: ghcr.io/tamcore/dragonfly-operator
-      tag: latest
+      tag: 0.0.1-alpha.3
     resources:
       limits:
         cpu: 500m
