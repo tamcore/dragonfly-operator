@@ -14,7 +14,11 @@ spec:
     singular: dragonfly
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.replicaCount
+      name: Size
+      type: integer
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Dragonfly is the Schema for the dragonflies API
