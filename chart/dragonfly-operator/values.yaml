@@ -1,4 +1,4 @@
-controllerManager:
+dragonflyOperator:
   kubeRbacProxy:
     image:
       repository: gcr.io/kubebuilder/kube-rbac-proxy

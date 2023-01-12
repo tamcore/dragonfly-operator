@@ -129,6 +129,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 helm: manifests kustomize helmify ## Generate helm chart
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(HELMIFY) -crd-dir -image-pull-secrets chart/$(CHART_NAME)
+	find chart/ -type f -print0 | xargs -0 sed -i '' -e 's/-dragonfly-operator//g'
 
 .PHONY: helm-push
 helm-push: ## Package and push helm chart

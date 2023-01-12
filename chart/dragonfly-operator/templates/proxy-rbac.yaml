@@ -36,5 +36,5 @@ roleRef:
   name: '{{ include "dragonfly-operator.fullname" . }}-proxy-role'
 subjects:
 - kind: ServiceAccount
-  name: '{{ include "dragonfly-operator.fullname" . }}-controller-manager'
+  name: '{{ include "dragonfly-operator.fullname" . }}'
   namespace: '{{ .Release.Namespace }}'
