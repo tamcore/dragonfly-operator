@@ -5731,4 +5731,7 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        specReplicasPath: .spec.replicaCount
+        statusReplicasPath: .status.replicaCount
       status: {}
