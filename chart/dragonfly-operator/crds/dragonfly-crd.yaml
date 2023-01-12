@@ -11,6 +11,8 @@ spec:
     kind: Dragonfly
     listKind: DragonflyList
     plural: dragonflies
+    shortNames:
+    - dfly
     singular: dragonfly
   scope: Namespaced
   versions:

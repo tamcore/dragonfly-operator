@@ -149,6 +149,7 @@ type DragonflyStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Size",type=integer,JSONPath=`.spec.replicaCount`
 //+kubebuilder:subresource:scale:specpath=.spec.replicaCount,statuspath=.status.replicaCount
+//+kubebuilder:resource:shortName=dfly
 
 // Dragonfly is the Schema for the dragonflies API
 type Dragonfly struct {
