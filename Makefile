@@ -175,3 +175,27 @@ $(ENVTEST): $(LOCALBIN)
 
 helmify: $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install github.com/arttor/helmify/cmd/helmify@$(HELMIFY_VERSION)
+
+##@ Release
+
+.PHONY: release
+release: helm ## Set Chart appVersion, bump Chart version, commit changes, tag $VERSION and push changes + tag
+	# Update Chart appVersion to VERSION
+	yq -i '.appVersion="$(VERSION)"' chart/dragonfly-operator/Chart.yaml
+
+	# Bump current Chart version and update it as well
+	$(eval OLD_VERSION = $(shell yq .version chart/dragonfly-operator/Chart.yaml))
+	$(eval NEW_VERSION = $(shell echo $(OLD_VERSION) | awk -F . '{OFS="."; $$NF+=1; print}'))
+	yq -i '.version="$(NEW_VERSION)"' chart/dragonfly-operator/Chart.yaml
+
+	# Commit updated files
+	# Chart.yaml is updated directly from us
+	# values.yaml through `helm` target and kustomization.yaml through `kustomize` target
+	git commit -m '`make release`' \
+		chart/dragonfly-operator/Chart.yaml \
+		chart/dragonfly-operator/values.yaml \
+		config/manager/kustomization.yaml
+
+	# TODO: Update README and whatnot as well
+
+	git tag v$(VERSION)
