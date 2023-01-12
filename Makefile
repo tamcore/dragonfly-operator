@@ -130,9 +130,16 @@ helm: manifests kustomize helmify ## Generate helm chart
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(HELMIFY) -crd-dir -image-pull-secrets chart/$(CHART_NAME)
 
-.PHONE: helm-push # Package and push helm chart
-helm-push:
+.PHONY: helm-push
+helm-push: ## Package and push helm chart
 		helm push $(shell helm package chart/$(CHART_NAME) --app-version $(VERSION) --version $(OCI_VERSION) | cut -d " " -f 8) oci://$(OCI)
+
+.PHONY: helm-bump
+helm-bump: ## Helper function to bump the helm chart version
+	# Bump current Chart version and update it as well
+	$(eval OLD_VERSION = $(shell yq .version chart/dragonfly-operator/Chart.yaml))
+	$(eval NEW_VERSION = $(shell echo $(OLD_VERSION) | awk -F . '{OFS="."; $$NF+=1; print}'))
+	yq -i '.version="$(NEW_VERSION)"' chart/dragonfly-operator/Chart.yaml
 
 ##@ Build Dependencies
 
@@ -145,7 +152,7 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
-HELMIFY = $(LOCALBIN)/helmify
+HELMIFY ?= $(LOCALBIN)/helmify
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
@@ -173,20 +180,16 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-helmify: $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/arttor/helmify/cmd/helmify@$(HELMIFY_VERSION)
+.PHONY: helmify
+helmify: $(HELMIFY) ## Download helmify locally if necessary.
+	test -s $(LOCALBIN)/helmify || GOBIN=$(LOCALBIN) go install github.com/arttor/helmify/cmd/helmify@$(HELMIFY_VERSION)
 
 ##@ Release
 
-.PHONY: release
+.PHONY: release helm-bump
 release: helm ## Set Chart appVersion, bump Chart version, commit changes, tag $VERSION and push changes + tag
 	# Update Chart appVersion to VERSION
 	yq -i '.appVersion="$(VERSION)"' chart/dragonfly-operator/Chart.yaml
-
-	# Bump current Chart version and update it as well
-	$(eval OLD_VERSION = $(shell yq .version chart/dragonfly-operator/Chart.yaml))
-	$(eval NEW_VERSION = $(shell echo $(OLD_VERSION) | awk -F . '{OFS="."; $$NF+=1; print}'))
-	yq -i '.version="$(NEW_VERSION)"' chart/dragonfly-operator/Chart.yaml
 
 	# Commit updated files
 	# Chart.yaml is updated directly from us
