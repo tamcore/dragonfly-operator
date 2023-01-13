@@ -187,8 +187,8 @@ helmify: $(HELMIFY) ## Download helmify locally if necessary.
 
 ##@ Release
 
-.PHONY: release helm-bump
-release: helm ## Set Chart appVersion, bump Chart version, commit changes, tag $VERSION and push changes + tag
+.PHONY: release
+release: helm helm-bump ## Set Chart appVersion, bump Chart version, commit changes, tag $VERSION and push changes + tag
 	# Update Chart appVersion to VERSION
 	yq -i '.appVersion="$(VERSION)"' chart/dragonfly-operator/Chart.yaml
 
