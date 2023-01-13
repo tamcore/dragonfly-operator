@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
@@ -213,67 +214,83 @@ func (r *DragonflyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		dragonfly.Spec.RedisPort = "6379"
 	}
 
-	// Just something quick to get around variable scopes
-	if true {
-		var have corev1.Service
-		have.Name = dragonfly.Name
-		have.Namespace = dragonfly.Namespace
-		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
-			wants, _ := r.serviceForDragonfly(dragonfly)
-			have.Spec = wants.Spec
-			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
-		})
-		if err != nil {
-			log.Error(err, "unable to ensure Service is correct")
-			return ctrl.Result{}, err
-		}
+	serviceSpec, _ := r.serviceForDragonfly(dragonfly)
+	err = r.ReconcileObject(ctx, dragonfly, serviceSpec)
+	if err != nil {
+		log.Error(err, "unable to ensure Service")
+		return ctrl.Result{Requeue: true}, err
+	} else {
+		log.Info("Ensured Service...")
 	}
 
 	if dragonfly.Spec.PodMonitor {
-		var have monitoringv1.PodMonitor
-		have.Name = dragonfly.Name
-		have.Namespace = dragonfly.Namespace
-		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
-			wants, _ := r.podMonitorForDragonfly(dragonfly)
-			have.Spec = wants.Spec
-			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
-		})
+		podMonitorSpec, _ := r.podMonitorForDragonfly(dragonfly)
+		err = r.ReconcileObject(ctx, dragonfly, podMonitorSpec)
 		if err != nil {
-			log.Error(err, "unable to ensure Service is correct")
-			return ctrl.Result{}, err
+			log.Error(err, "unable to ensure PodMonitor")
+			return ctrl.Result{Requeue: true}, err
+		} else {
+			log.Info("Ensured PodMonitor...")
 		}
 	}
 
 	if dragonfly.Spec.StatefulMode {
-		var have appsv1.StatefulSet
-		have.Name = dragonfly.Name
-		have.Namespace = dragonfly.Namespace
-		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
-			wants, _ := r.statefulsetForDragonfly(dragonfly)
-			have.Spec = wants.Spec
-			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
-		})
+		statefulSetSpec, _ := r.statefulsetForDragonfly(dragonfly)
+		err = r.ReconcileObject(ctx, dragonfly, statefulSetSpec)
 		if err != nil {
-			log.Error(err, "unable to ensure StatefulSet is correct")
-			return ctrl.Result{}, err
+			log.Error(err, "unable to ensure StatefulSet")
+			return ctrl.Result{Requeue: true}, err
+		} else {
+			log.Info("Ensured StatefulSet...")
 		}
 	}
 
 	if !dragonfly.Spec.StatefulMode {
-		var have appsv1.Deployment
-		have.Name = dragonfly.Name
-		have.Namespace = dragonfly.Namespace
-		_, err := ctrl.CreateOrUpdate(ctx, r.Client, &have, func() error {
-			wants, _ := r.deploymentForDragonfly(dragonfly)
-			have.Spec = wants.Spec
-			return controllerutil.SetControllerReference(dragonfly, &have, r.Scheme)
-		})
+		deploymentSpec, _ := r.deploymentForDragonfly(dragonfly)
+		err = r.ReconcileObject(ctx, dragonfly, deploymentSpec)
 		if err != nil {
-			log.Error(err, "unable to ensure Deployment is correct")
-			return ctrl.Result{}, err
+			log.Error(err, "unable to ensure Deployment")
+			return ctrl.Result{Requeue: true}, err
+		} else {
+			log.Info("Ensured Deployment...")
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil
+}
+
+func (r *DragonflyReconciler) ReconcileObject(ctx context.Context, dragonfly *dragonflyv1alpha1.Dragonfly, obj runtime.Object) error {
+	// Convert the object to a Kubernetes object
+	k8sObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+
+	// Create a new Unstructured object
+	desiredObj := &unstructured.Unstructured{}
+	desiredObj.Object = k8sObj
+
+	// Extract the GroupVersionKind from the input object
+	gvks, _, err := r.Scheme.ObjectKinds(obj)
+	if err != nil {
+		return err
+	}
+	desiredObj.SetGroupVersionKind(gvks[0])
+
+	// Quickly construct an object to search for with CreateOrUpdate and mutate it's result later
+	inclusterObj := &unstructured.Unstructured{}
+	inclusterObj.SetName(desiredObj.GetName())
+	inclusterObj.SetNamespace(desiredObj.GetNamespace())
+	inclusterObj.SetGroupVersionKind(gvks[0])
+
+	//Create or Update the object in the cluster
+	_, err = ctrl.CreateOrUpdate(ctx, r.Client, inclusterObj, func() error {
+		// Set the spec field on the new object
+		inclusterObj.Object["spec"] = desiredObj.Object["spec"]
+
+		// Set the owner reference on the object
+		return ctrl.SetControllerReference(dragonfly, desiredObj, r.Scheme)
+	})
+	return err
 }
 
 // finalizeDragonfly will perform the required operations before delete the CR.
