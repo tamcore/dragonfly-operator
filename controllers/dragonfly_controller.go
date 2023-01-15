@@ -288,7 +288,7 @@ func (r *DragonflyReconciler) ReconcileObject(ctx context.Context, dragonfly *dr
 		inclusterObj.Object["spec"] = desiredObj.Object["spec"]
 
 		// Set the owner reference on the object
-		return ctrl.SetControllerReference(dragonfly, desiredObj, r.Scheme)
+		return ctrl.SetControllerReference(dragonfly, inclusterObj, r.Scheme)
 	})
 	return err
 }
