@@ -1,80 +1,39 @@
 # dragonfly-operator
-// TODO(user): Add simple overview of use/purpose
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+Dragonfly Operator creates and manages instances of [DragonflyDB](https://github.com/dragonflydb/dragonfly). Beware, that this is not an officially supported project.
 
-## Getting Started
-You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
-**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
+## Installation
 
-### Running on the cluster
-1. Install Instances of Custom Resources:
+### Helm Chart
 
+Kindly have a look in [chart/dragonfly-operator](https://github.com/tamcore/dragonfly-operator/tree/master/chart/dragonfly-operator). The README there will provide you with instructions on how to install the latest version of this operator.
+
+### Kustomize
+
+1. Fetch a current copy of this repository
+2. Build & Apply through Kustomize+kubectl
 ```sh
-kubectl apply -f config/samples/
+kustomize build config/default | kubectl apply -f-
 ```
 
-2. Build and push your image to the location specified by `IMG`:
-	
-```sh
-make docker-build docker-push IMG=<some-registry>/dragonfly-operator:tag
-```
-	
-3. Deploy the controller to the cluster with the image specified by `IMG`:
+### Deploying a Dragonfly instance
+
+> **Tip**: In [config/samples](https://github.com/tamcore/dragonfly-operator/tree/master/config/samples) you'll find a few more samples. To deploy Dragonfly in a stateful way, or with TLS enabled for example.
+
+To deploy a single, stateless Dragonfly instance, as much as the snipped bellow is enough.
 
 ```sh
-make deploy IMG=<some-registry>/dragonfly-operator:tag
+cat <<EOC | kubectl apply -f -
+---
+apiVersion: dragonfly.pborn.eu/v1alpha1
+kind: Dragonfly
+metadata:
+  name: dragonfly
+  namespace: dragonfly
+spec:
+  replicaCount: 1
+EOC
 ```
-
-### Uninstall CRDs
-To delete the CRDs from the cluster:
-
-```sh
-make uninstall
-```
-
-### Undeploy controller
-UnDeploy the controller to the cluster:
-
-```sh
-make undeploy
-```
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-### How it works
-This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
-
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) 
-which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster 
-
-### Test It Out
-1. Install the CRDs into the cluster:
-
-```sh
-make install
-```
-
-2. Run your controller (this will run in the foreground, so switch to a new terminal if you want to leave it running):
-
-```sh
-make run
-```
-
-**NOTE:** You can also run this in one step by running: `make install run`
-
-### Modifying the API definitions
-If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
-
-```sh
-make manifests
-```
-
-**NOTE:** Run `make --help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
 ## License
 
