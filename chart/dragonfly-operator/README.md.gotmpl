@@ -1,0 +1,37 @@
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" .  }}{{ template "chart.typeBadge" .  }}{{ template "chart.appVersionBadge" .  }}
+
+{{ template "chart.requirementsSection" . }}
+
+## TL;DR
+
+### Installing the Chart
+
+```bash
+$ helm upgrade \
+    --install \
+    --namespace dragonfly-operator \
+    --create-namespace \
+    dragonfly-operator \
+    oci://ghcr.io/tamcore/dragonfly-operator/chart/dragonfly-operator \
+    --version {{ template "chart.version" . }}
+```
+
+The command will install the chart in version `{{ template "chart.version" . }}` with dragonfly-operator version `{{ template "chart.appVersion" . }}` (if not overriden) into the namespace `dragonfly-operator`.
+
+> **Tip**: List all releases using `helm list`
+
+### Uninstalling the Chart
+
+To uninstall/delete the `dragonfly-operator` deployment:
+
+```bash
+$ helm -n dragonfly-operator uninstall dragonfly-operator
+```
+The command removes all the components associated with the chart and deletes the release. It's recommended to delete deployed `Dragonfly` resources, **before** removing the operator.
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}

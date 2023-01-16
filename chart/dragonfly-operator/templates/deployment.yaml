@@ -78,6 +78,10 @@ spec:
         command:
         - /manager
         env:
+        - name: DRAGONFLY_IMAGE_REPOSITORY
+          value: ghcr.io/dragonflydb/dragonfly
+        - name: DRAGONFLY_IMAGE_TAG
+          value: v0.13.1
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ .Values.kubernetesClusterDomain }}
         image: {{ .Values.dragonflyOperator.manager.image.repository }}:{{ .Values.dragonflyOperator.manager.image.tag
