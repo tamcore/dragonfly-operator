@@ -54,11 +54,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Update Dockerfile for multi-arch builds
+        run: |
+          sed -i \
+            -e '1 s/\(^FROM\)/FROM --platform=\$\{BUILDPLATFORM\}/; t' \
+            -e ' 1,// s//FROM --platform=\$\{BUILDPLATFORM\}/' \
+            Dockerfile
+
       - name: Build image and push
         uses: docker/build-push-action@v3.2.0
         with:
           context: .
-          platforms: linux/amd64 #,linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
