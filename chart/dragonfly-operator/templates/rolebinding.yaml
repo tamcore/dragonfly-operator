@@ -1,0 +1,16 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "dragonfly-operator.fullname" . }}-leases
+  labels:
+    app.kubernetes.io/component: rbac
+    {{- include "dragonfly-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "dragonfly-operator.fullname" . }}-leases
+subjects:
+- kind: ServiceAccount
+  name: {{ include "dragonfly-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

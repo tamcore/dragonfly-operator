@@ -1,33 +1,73 @@
-dragonflyOperator:
-  kubeRbacProxy:
-    image:
-      repository: gcr.io/kubebuilder/kube-rbac-proxy
-      tag: v0.13.1
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 5m
-        memory: 64Mi
-  manager:
-    image:
-      repository: ghcr.io/tamcore/dragonfly-operator
-      tag: 0.0.1-alpha.5
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 10m
-        memory: 64Mi
-  replicas: 1
+# Default values for dragonfly-operator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: ghcr.io/tamcore/dragonfly-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+cleanup:
+  enabled: true
+  image:
+    repository: gcr.io/google_containers/hyperkube
+    tag: v1.18.0
+    pullPolicy: IfNotPresent
+
+replicas: 1
+
 imagePullSecrets: []
-kubernetesClusterDomain: cluster.local
-metricsService:
-  ports:
-  - name: https
-    port: 8443
-    protocol: TCP
-    targetPort: https
-  type: ClusterIP
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+
+podMonitor:
+  enable: true
+  # Annotations to add to the service account
+  annotations: {}
+
+env:
+- name: DRAGONFLY_IMAGE_REPOSITORY
+  value: ghcr.io/dragonflydb/dragonfly
+- name: DRAGONFLY_IMAGE_TAG
+  value: v0.13.1
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

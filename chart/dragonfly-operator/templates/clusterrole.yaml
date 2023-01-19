@@ -1,0 +1,98 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "dragonfly-operator.fullname" . }}
+  labels:
+    app.kubernetes.io/component: rbac
+    {{- include "dragonfly-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+    - apps
+  resources:
+    - deployments
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+- apiGroups:
+    - apps
+  resources:
+    - statefulsets
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+- apiGroups:
+    - ""
+  resources:
+    - events
+  verbs:
+    - create
+    - patch
+- apiGroups:
+    - ""
+  resources:
+    - pods
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+    - ""
+  resources:
+    - services
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+- apiGroups:
+    - dragonfly.pborn.eu
+  resources:
+    - dragonflies
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+- apiGroups:
+    - dragonfly.pborn.eu
+  resources:
+    - dragonflies/finalizers
+  verbs:
+    - update
+- apiGroups:
+    - dragonfly.pborn.eu
+  resources:
+    - dragonflies/status
+  verbs:
+    - get
+    - patch
+    - update
+- apiGroups:
+    - monitoring.coreos.com
+  resources:
+    - podmonitors
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch

@@ -1,0 +1,102 @@
+{{- define "cleanupHookName.annotations" -}}
+"helm.sh/hook": pre-delete
+"helm.sh/hook-weight": "-5"
+"helm.sh/hook-delete-policy": hook-succeeded
+{{- end }}
+{{- if .Values.cleanup.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "dragonfly-operator.fullname" . }}-cleanup-hook
+  namespace: {{ .Release.Namespace }}
+  annotations: {{ include "cleanupHookName.annotations" . | nindent 4 }}
+  labels:
+    {{- include "dragonfly-operator.labels" . | nindent 4 }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "dragonfly-operator.fullname" . }}-cleanup-hook
+  namespace: {{ .Release.Namespace }}
+  annotations: {{ include "cleanupHookName.annotations" . | nindent 4 }}
+  labels:
+    {{- include "dragonfly-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - dragonfly.pborn.eu
+  resources:
+  - dragonflies
+  verbs:
+  - delete
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "dragonfly-operator.fullname" . }}-cleanup-hook
+  namespace: {{ .Release.Namespace }}
+  annotations: {{ include "cleanupHookName.annotations" . | nindent 4 }}
+  labels:
+    {{- include "dragonfly-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "dragonfly-operator.fullname" . }}-cleanup-hook
+subjects:
+- kind: ServiceAccount
+  name: {{ include "dragonfly-operator.fullname" . }}-cleanup-hook
+  namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "dragonfly-operator.fullname" . }}-cleanup-hook
+  namespace: {{ .Release.Namespace }}
+  annotations: {{ include "cleanupHookName.annotations" . | nindent 4 }}
+  labels:
+    {{- include "dragonfly-operator.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      name: {{ include "dragonfly-operator.fullname" . }}-cleanup-hook
+    spec:
+      serviceAccountName: {{ include "dragonfly-operator.serviceAccountName" . }}-cleanup-hook
+      containers:
+      - name: kubectl
+        image: {{ .Values.cleanup.image.repository }}:{{ .Values.cleanup.image.tag }}
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "56Mi"
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - |
+          kubectl delete dragonflies --all --ignore-not-found=true
+      restartPolicy: OnFailure
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

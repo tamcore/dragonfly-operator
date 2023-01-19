@@ -2,7 +2,7 @@
 
 Dragonfly Operator creates and manages instances of DragonflyDB
 
-![Version: 0.0.5](https://img.shields.io/badge/Version-0.0.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.1-alpha.5](https://img.shields.io/badge/AppVersion-0.0.1--alpha.5-informational?style=flat-square)
+![Version: 0.0.6](https://img.shields.io/badge/Version-0.0.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.1-alpha.5](https://img.shields.io/badge/AppVersion-0.0.1--alpha.5-informational?style=flat-square)
 
 ## Requirements
 
@@ -19,10 +19,10 @@ $ helm upgrade \
     --create-namespace \
     dragonfly-operator \
     oci://ghcr.io/tamcore/dragonfly-operator/chart/dragonfly-operator \
-    --version 0.0.5
+    --version 0.0.6
 ```
 
-The command will install the chart in version `0.0.5` with dragonfly-operator version `0.0.1-alpha.5` (if not overriden) into the namespace `dragonfly-operator`.
+The command will install the chart in version `0.0.6` with dragonfly-operator version `0.0.1-alpha.5` (if not overriden) into the namespace `dragonfly-operator`.
 
 > **Tip**: List all releases using `helm list`
 
@@ -39,24 +39,35 @@ The command removes all the components associated with the chart and deletes the
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| dragonflyOperator.kubeRbacProxy.image.repository | string | `"gcr.io/kubebuilder/kube-rbac-proxy"` |  |
-| dragonflyOperator.kubeRbacProxy.image.tag | string | `"v0.13.1"` |  |
-| dragonflyOperator.kubeRbacProxy.resources.limits.cpu | string | `"500m"` |  |
-| dragonflyOperator.kubeRbacProxy.resources.limits.memory | string | `"128Mi"` |  |
-| dragonflyOperator.kubeRbacProxy.resources.requests.cpu | string | `"5m"` |  |
-| dragonflyOperator.kubeRbacProxy.resources.requests.memory | string | `"64Mi"` |  |
-| dragonflyOperator.manager.image.repository | string | `"ghcr.io/tamcore/dragonfly-operator"` |  |
-| dragonflyOperator.manager.image.tag | string | `"0.0.1-alpha.5"` |  |
-| dragonflyOperator.manager.resources.limits.cpu | string | `"500m"` |  |
-| dragonflyOperator.manager.resources.limits.memory | string | `"128Mi"` |  |
-| dragonflyOperator.manager.resources.requests.cpu | string | `"10m"` |  |
-| dragonflyOperator.manager.resources.requests.memory | string | `"64Mi"` |  |
-| dragonflyOperator.replicas | int | `1` |  |
+| affinity | object | `{}` |  |
+| cleanup.enabled | bool | `true` |  |
+| cleanup.image.pullPolicy | string | `"IfNotPresent"` |  |
+| cleanup.image.repository | string | `"gcr.io/google_containers/hyperkube"` |  |
+| cleanup.image.tag | string | `"v1.18.0"` |  |
+| env[0].name | string | `"DRAGONFLY_IMAGE_REPOSITORY"` |  |
+| env[0].value | string | `"ghcr.io/dragonflydb/dragonfly"` |  |
+| env[1].name | string | `"DRAGONFLY_IMAGE_TAG"` |  |
+| env[1].value | string | `"v0.13.1"` |  |
+| fullnameOverride | string | `""` |  |
+| image.pullPolicy | string | `"IfNotPresent"` |  |
+| image.repository | string | `"ghcr.io/tamcore/dragonfly-operator"` |  |
+| image.tag | string | `""` |  |
 | imagePullSecrets | list | `[]` |  |
-| kubernetesClusterDomain | string | `"cluster.local"` |  |
-| metricsService.ports[0].name | string | `"https"` |  |
-| metricsService.ports[0].port | int | `8443` |  |
-| metricsService.ports[0].protocol | string | `"TCP"` |  |
-| metricsService.ports[0].targetPort | string | `"https"` |  |
-| metricsService.type | string | `"ClusterIP"` |  |
+| nameOverride | string | `""` |  |
+| nodeSelector | object | `{}` |  |
+| podAnnotations | object | `{}` |  |
+| podMonitor.annotations | object | `{}` |  |
+| podMonitor.enable | bool | `true` |  |
+| podSecurityContext.runAsNonRoot | bool | `true` |  |
+| replicas | int | `1` |  |
+| resources.limits.cpu | string | `"500m"` |  |
+| resources.limits.memory | string | `"128Mi"` |  |
+| resources.requests.cpu | string | `"10m"` |  |
+| resources.requests.memory | string | `"64Mi"` |  |
+| securityContext.allowPrivilegeEscalation | bool | `false` |  |
+| securityContext.capabilities.drop[0] | string | `"ALL"` |  |
+| serviceAccount.annotations | object | `{}` |  |
+| serviceAccount.create | bool | `true` |  |
+| serviceAccount.name | string | `""` |  |
+| tolerations | list | `[]` |  |
 

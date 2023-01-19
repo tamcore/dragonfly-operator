@@ -1,0 +1,22 @@
+{{- if .Values.podMonitor.enable }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "dragonfly-operator.fullname" . }}
+  {{- with .Values.podMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    app.kubernetes.io/component: metrics
+    {{- include "dragonfly-operator.labels" . | nindent 4 }}
+spec:
+  podMetricsEndpoints:
+  - path: /metrics
+    port: metrics
+    scheme: http
+  selector:
+    matchLabels:
+      {{- include "dragonfly-operator.selectorLabels" . | nindent 6 }}
+{{- end }}
