@@ -126,22 +126,26 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: helm
-helm: manifests kustomize helmify helm-docs ## Generate helm chart
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(HELMIFY) -crd-dir -image-pull-secrets chart/$(CHART_NAME)
-	find chart/ -type f -print0 | xargs -0 sed -i '' -e 's/-dragonfly-operator//g'
+helm: manifests kustomize yq helm-docs ## Generate helm chart
+	# Transfer updated CRD
+	$(KUSTOMIZE) build config/crd > chart/dragonfly-operator/crds/dragonfly-crd.yaml
+	# Transfer updated RBAC
+	sed -i'' -e '/^rules/q' chart/dragonfly-operator/templates/clusterrole.yaml
+	$(KUSTOMIZE) build config/rbac | $(YQ) '. | select(.metadata.name == "manager-role") | .rules' \
+	  >> chart/dragonfly-operator/templates/clusterrole.yaml
+	$(YQ) -i '.appVersion="$(VERSION)"' chart/dragonfly-operator/Chart.yaml
 	$(HELM_DOCS) -c chart/
 
 .PHONY: helm-push
 helm-push: ## Package and push helm chart
 		helm push $(shell helm package chart/$(CHART_NAME) --app-version $(VERSION) --version $(OCI_VERSION) | cut -d " " -f 8) oci://$(OCI)
 
-.PHONY: helm-bump
+.PHONY: helm-bump yq
 helm-bump: ## Helper function to bump the helm chart version
 	# Bump current Chart version and update it as well
 	$(eval OLD_VERSION = $(shell yq .version chart/dragonfly-operator/Chart.yaml))
 	$(eval NEW_VERSION = $(shell echo $(OLD_VERSION) | awk -F . '{OFS="."; $$NF+=1; print}'))
-	yq -i '.version="$(NEW_VERSION)"' chart/dragonfly-operator/Chart.yaml
+	$(YQ) -i '.version="$(NEW_VERSION)"' chart/dragonfly-operator/Chart.yaml
 
 ##@ Build Dependencies
 
@@ -154,13 +158,13 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
-HELMIFY ?= $(LOCALBIN)/helmify
+YQ ?= $(LOCALBIN)/yq
 HELM_DOCS ?= $(LOCALBIN)/helm-docs
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
-HELMIFY_VERSION ?= v0.3.22
+YQ_VERSION ?= v4.30.8
 HELM_DOCS_VERSION ?= v1.11.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
@@ -184,10 +188,10 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-.PHONY: helmify
-helmify: $(HELMIFY) ## Download helmify locally if necessary.
-$(HELMIFY): $(LOCALBIN)
-	test -s $(LOCALBIN)/helmify || GOBIN=$(LOCALBIN) go install github.com/arttor/helmify/cmd/helmify@$(HELMIFY_VERSION)
+.PHONY: yq
+yq: $(YQ) ## Download yq locally if necessary.
+$(YQ): $(LOCALBIN)
+	test -s $(LOCALBIN)/yq || GOBIN=$(LOCALBIN) go install github.com/mikefarah/yq/v4@$(YQ_VERSION)
 
 .PHONY: helm-docs
 helm-docs: $(HELM_DOCS) ## Download helm-docs locally if necessary.
