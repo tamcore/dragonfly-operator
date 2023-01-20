@@ -4,8 +4,8 @@ go 1.19
 
 require (
 	github.com/caitlinelfring/go-env-default v1.1.0
-	github.com/onsi/ginkgo/v2 v2.6.0
-	github.com/onsi/gomega v1.24.1
+	github.com/onsi/ginkgo/v2 v2.7.0
+	github.com/onsi/gomega v1.25.0
 	github.com/prometheus-operator/prometheus-operator v0.62.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.62.0
 	github.com/tcnksm/go-latest v0.0.0-20170313132115-e3007ae9052e
