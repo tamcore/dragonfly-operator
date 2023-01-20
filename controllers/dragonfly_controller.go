@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
 	"path"
 	// "strings"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -27,6 +26,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	// v1 "k8s.io/api/core/v1"
+	"github.com/caitlinelfring/go-env-default"
+	"github.com/tcnksm/go-latest"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -40,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	// "time"
 
 	dragonflyv1alpha1 "github.com/tamcore/dragonfly-operator/api/v1alpha1"
 )
@@ -54,15 +54,17 @@ const (
 	// typeDegradedDragonfly represents the status used when the custom resource is deleted and the finalizer operations are must to occur.
 	typeDegradedDragonfly = "Degraded"
 
-	dragonflyDefaultRepository = "ghcr.io/dragonflydb/dragonfly"
-	dragonflyDefaultTag        = "v0.13.1"
-
 	dragonflySecretDir    = "/etc/dragonfly/secret"
 	dragonflyConfigMapDir = "/etc/dragonfly/config"
 
 	dragonflyTlsDir = "/etc/dragonfly/tls"
 
 	dragonflyVolumeClaimDefaultSize = "1Gi"
+)
+
+var (
+	dragonflyDefaultRepository = env.GetDefault("DRAGONFLY_IMAGE_REPOSITORY", "ghcr.io/dragonflydb/dragonfly")
+	dragonflyDefaultTag        = env.GetDefault("DRAGONFLY_IMAGE_TAG", latestGithubRelease("dragonflydb", "dragonfly"))
 )
 
 // DragonflyReconciler reconciles a Dragonfly object
@@ -650,24 +652,29 @@ func labelsForDragonfly(name string) map[string]string {
 	}
 }
 
-func getVarEnvFallback(preferred string, envVar string, latest string) string {
+func getStringDefault(preferred string, fallback string) string {
 	if preferred == "" {
-		if envValue, ok := os.LookupEnv(envVar); ok {
-			return envValue
-		} else {
-			return latest
-		}
+		return fallback
 	}
 	return preferred
 }
 
 func imageForDragonfly(imageRepository string, imageTag string) (string, error) {
 	image := fmt.Sprintf("%s:%s",
-		getVarEnvFallback(imageRepository, "DRAGONFLY_IMAGE_REPOSITORY", dragonflyDefaultRepository),
-		getVarEnvFallback(imageTag, "DRAGONFLY_IMAGE_TAG", dragonflyDefaultTag),
+		getStringDefault(imageRepository, dragonflyDefaultRepository),
+		getStringDefault(imageTag, dragonflyDefaultTag),
 	)
 
 	return image, nil
+}
+
+func latestGithubRelease(repoOwner string, repository string) string {
+	githubTag := &latest.GithubTag{
+		Owner:      repoOwner,
+		Repository: repository,
+	}
+	res, _ := latest.Check(githubTag, "v0.0.0")
+	return "v" + res.Current
 }
 
 // SetupWithManager sets up the controller with the Manager.

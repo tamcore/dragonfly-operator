@@ -3,10 +3,12 @@ module github.com/tamcore/dragonfly-operator
 go 1.19
 
 require (
+	github.com/caitlinelfring/go-env-default v1.1.0
 	github.com/onsi/ginkgo/v2 v2.6.0
 	github.com/onsi/gomega v1.24.1
 	github.com/prometheus-operator/prometheus-operator v0.62.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.62.0
+	github.com/tcnksm/go-latest v0.0.0-20170313132115-e3007ae9052e
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
@@ -31,8 +33,11 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-github v17.0.0+incompatible // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
