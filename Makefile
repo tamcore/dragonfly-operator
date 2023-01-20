@@ -208,11 +208,6 @@ release: helm helm-bump ## Set Chart appVersion, bump Chart version, commit chan
 	# Commit updated files
 	# Chart.yaml is updated directly from us
 	# values.yaml through `helm` target and kustomization.yaml through `kustomize` target
-	git commit -m '`make release`' \
-		chart/dragonfly-operator/Chart.yaml \
-		chart/dragonfly-operator/values.yaml \
-		config/manager/kustomization.yaml
-
-	# TODO: Update README and whatnot as well
+	git commit -am '`make release`'
 
 	git tag v$(VERSION)
