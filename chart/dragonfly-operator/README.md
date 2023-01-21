@@ -2,7 +2,7 @@
 
 Dragonfly Operator creates and manages instances of DragonflyDB
 
-![Version: 0.0.6](https://img.shields.io/badge/Version-0.0.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.1-alpha.5](https://img.shields.io/badge/AppVersion-0.0.1--alpha.5-informational?style=flat-square)
+![Version: 0.0.6](https://img.shields.io/badge/Version-0.0.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.1-alpha.6](https://img.shields.io/badge/AppVersion-0.0.1--alpha.6-informational?style=flat-square)
 
 ## Requirements
 
@@ -22,7 +22,7 @@ $ helm upgrade \
     --version 0.0.6
 ```
 
-The command will install the chart in version `0.0.6` with dragonfly-operator version `0.0.1-alpha.5` (if not overriden) into the namespace `dragonfly-operator`.
+The command will install the chart in version `0.0.6` with dragonfly-operator version `0.0.1-alpha.6` (if not overriden) into the namespace `dragonfly-operator`.
 
 > **Tip**: List all releases using `helm list`
 
@@ -47,7 +47,7 @@ The command removes all the components associated with the chart and deletes the
 | env[0].name | string | `"DRAGONFLY_IMAGE_REPOSITORY"` |  |
 | env[0].value | string | `"ghcr.io/dragonflydb/dragonfly"` |  |
 | env[1].name | string | `"DRAGONFLY_IMAGE_TAG"` |  |
-| env[1].value | string | `"v0.13.1"` |  |
+| env[1].value | string | `"v0.14.0"` |  |
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"ghcr.io/tamcore/dragonfly-operator"` |  |
