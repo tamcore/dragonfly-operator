@@ -4,7 +4,9 @@
     "config:base",
     "regexManagers:dockerfileVersions",
     ":disableDependencyDashboard",
-    ":disableRateLimiting"
+    ":disableRateLimiting",
+    "group:goOpenapi",
+    "group:kubernetes"
   ],
   "prHourlyLimit": 100,
   "prConcurrentLimit": 100,
