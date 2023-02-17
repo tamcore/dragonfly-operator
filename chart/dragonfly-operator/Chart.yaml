@@ -3,8 +3,8 @@ name: dragonfly-operator
 description: Dragonfly Operator creates and manages instances of DragonflyDB
 type: application
 home: https://github.com/tamcore/dragonfly-operator
-version: 0.0.7
-appVersion: "0.0.1-alpha.6"
+version: 0.0.8
+appVersion: "0.0.1-alpha.7"
 kubeVersion: ">=1.23.0-0"
 keywords:
   - database
