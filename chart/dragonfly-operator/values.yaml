@@ -44,7 +44,7 @@ env:
 - name: DRAGONFLY_IMAGE_REPOSITORY
   value: ghcr.io/dragonflydb/dragonfly
 - name: DRAGONFLY_IMAGE_TAG
-  value: v0.16.0
+  value: v0.17.0
 
 securityContext:
   allowPrivilegeEscalation: false
