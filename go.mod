@@ -11,7 +11,7 @@ require (
 	github.com/tcnksm/go-latest v0.0.0-20170313132115-e3007ae9052e
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
-	k8s.io/client-go v0.26.1
+	k8s.io/client-go/v11 v11.0.0+incompatible
 	k8s.io/utils v0.0.0-20230202215443-34013725500c
 	sigs.k8s.io/controller-runtime v0.14.4
 )
